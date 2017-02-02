@@ -28,7 +28,8 @@ private:
     enum Enum_StopCriteria stopCriteria; // Criterio de parada utilizado
     enum Enum_Process_Type processType; // Tipo de processamento
 
-    bool debug;
+    bool change;
+    bool debug = false;
     bool display;
 
     unsigned long int numGen;
@@ -36,7 +37,7 @@ private:
     float maxTimeWithoutUpdate;
 
     int totalMoves;
-    bool saveLogRunFile;
+    const char *saveLogRunFile;
 
     int numSubIndDepots; // Mu value
     int numOffspringsPerParent; // Lambda value
@@ -67,6 +68,10 @@ public:
     float getCapacityPenalty() const;
 
     void setCapacityPenalty(float capacityPenalty);
+
+    bool isChange() const;
+
+    void setChange(bool change);
 
     bool isDebug() const;
 
@@ -128,9 +133,9 @@ public:
 
     void setRouteDurationPenalty(float routeDurationPenalty);
 
-    bool isSaveLogRunFile() const;
+    const char *getSaveLogRunFile() const;
 
-    void setSaveLogRunFile(bool saveLogRunFile);
+    void setSaveLogRunFile(const char *saveLogRunFile);
 
     Enum_StopCriteria getStopCriteria() const;
 
@@ -151,6 +156,10 @@ public:
     void setParameters(MDVRPProblem *problem);
 
     string getLocalSearchTypeStringValue();
+
+    int getMaxDepot() const;
+
+    void setMaxDepot(int maxDepot);
 
 };
 

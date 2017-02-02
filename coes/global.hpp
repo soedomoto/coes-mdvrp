@@ -18,45 +18,11 @@ using namespace std;
 #define    GLOBAL_H
 
 // INSTANCE TEST
-#define INST_TEST "pr10"
+// #define INST_TEST "pr10"
 
-#define SOURCE 1
-#define DEBUG_VERSION true
-
-#if SOURCE == 1
-// LOCAL
-#define BASE_DIR_DAT "/home/soedomoto/eclipse/mdvrp-cuda/data/dat/"
-#define BASE_DIR_SOL "/home/soedomoto/eclipse/mdvrp-cuda/data/sol/"
-//#define LOG_RUN_FILE "/Users/fernando/Temp/MDVRP/experiments/mdvrpcpu-teste.txt"
-#define LOG_RUN_FILE "/home/soedomoto/eclipse/mdvrp-cuda/data/mdvrpcpu-20.txt"
-
-#elif SOURCE == 2
-
-// UFMG
-#define BASE_DIR_DAT "/home/fernando/experiments/instances/dat/"
-#define BASE_DIR_SOL "/home/fernando/experiments/instances/sol/"
-#define LOG_RUN_FILE "/home/fernando/experiments/mdvrpcpu-99-01-03.txt"
-
-#elif SOURCE==3
-
-// HUGO
-#define BASE_DIR_DAT "/home/fernando/Temp/MDVRP/dat/"
-#define BASE_DIR_SOL "/home/fernando/Temp/MDVRP/sol/"
-#define LOG_RUN_FILE "/home/fernando/Temp/MDVRP/experiments/mdvrpcpu-99-01-02.txt"
-
-#elif SOURCE==4
-
-// HUGO Win
-#define BASE_DIR_DAT "C:/Dev/MDVRP/dat/"
-#define BASE_DIR_SOL "C:/Dev/MDVRP/sol/"
-#define LOG_RUN_FILE "C:/Dev/MDVRP/mdvrpGPU-hugo-01-01.txt"
-
-#endif
-
-#define DEPOT_DELIM -1
-#define ROUTE_DELIM -2
-
-#define MIN_ELEM_IND 5
+// #define SOURCE 1
+// #define DEBUG_VERSION true
+// #define LOG_RUN_FILE "/home/soedomoto/eclipse/mdvrp-cuda/data/mdvrpcpu-20.txt"
 
 #define NUM_MAX_DEP 9
 #define NUM_MAX_CLI 360

@@ -224,7 +224,85 @@ void MDVRPProblem::allocateMemory() {
 
 }
 
-bool MDVRPProblem::processInstanceFiles(char *dataFile, char *solutionFile, char *instCode) {
+bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *problemFile, const char *solutionFile) {
+    this->setInstCode(problemName);
+
+    FILE *problem;
+    problem = fopen(problemFile, "r");
+    if (problem == NULL) {
+        printf("Error opening file = %s \n\n", problemFile);
+        return false;
+    }
+
+    FILE *solution;
+    solution = fopen(solutionFile, "r");
+    if (solution == NULL) {
+        printf("Error opening file = %s \n\n", solutionFile);
+        return false;
+    }
+
+    int i, type, vehicles, customers, depots, valueInt;
+    float valueFloat;
+    typedef_point point;
+
+    // Problem informations
+    fscanf(problem, "%d %d %d %d", &type, &vehicles, &customers, &depots);
+    this->setDepots(depots);
+    this->setVehicles(vehicles);
+    this->setCustomers(customers);
+
+    // Allocate memory using problem informations
+    this->allocateMemory();
+
+    // Instance
+    this->setInstance(problemFile);
+
+    // Best know solution
+    fscanf(solution, "%f", &valueFloat);
+    this->setBestKnowSolution(valueFloat);
+
+    // Capacity and duration - homogeneous problems
+    for (i = 0; i < this->getDepots(); ++i) {
+        //fscanf(data, "%f %d", &problema.duracao, &problema.capacidade);
+        fscanf(problem, "%f %d", &valueFloat, &valueInt);
+        this->setDuration(valueFloat);
+        this->setCapacity(valueInt);
+    }
+
+    // Customer informations
+    for (i = 0; i < this->getCustomers(); ++i) {
+        fscanf(problem, "%d %f %f %d %d", &type, &point.x, &point.y, &type, &valueInt);
+
+        this->getCustomerPoints().at(i) = point;
+        this->getDemand().at(i) = valueInt;
+
+        while (getc(problem) != '\n');
+    }
+
+    // Depot informations
+    for (i = 0; i < this->getDepots(); ++i) {
+        fscanf(problem, "%d %f %f", &type, &point.x, &point.y);
+        this->getDepotPoints().at(i) = point;
+
+        while (getc(problem) != '\n' && !feof(problem));
+    }
+
+    this->calculateMatrixDistance();
+    this->setNearestCustomersFromCustomer();
+    this->setNearestCustomersFromDepot();
+    this->setNearestDepotsFromCustomer();
+
+    this->defineIntialCustomersAllocation();
+
+    this->operateGranularNeighborhood();
+
+    fclose(solution);
+    fclose(problem);
+
+    return true;
+}
+
+bool MDVRPProblem::processInstanceFilesOld(char *dataFile, char *solutionFile, char *instCode) {
 
     FILE *data;
     FILE *solution;

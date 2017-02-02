@@ -1,18 +1,37 @@
-#ifndef SOLVER_H
-#define SOLVER_H
+//
+// Created by soedomoto on 31/01/17.
+//
+
+#ifndef LIB_COES_SOLVER_H
+#define LIB_COES_SOLVER_H
 
 
-class solver {
+#include "mdvrp_problem.hpp"
+#include "algorithm_config.hpp"
+
+class Solver {
+    time_t start, end;
+    MDVRPProblem *problem = new MDVRPProblem();
+    AlgorithmConfig *config = new AlgorithmConfig();
 public:
-    solver();
+    Solver();
 
-    virtual ~solver();
+    virtual ~Solver();
 
     int const solve();
 
-protected:
+    MDVRPProblem *getProblem() const;
 
-private:
+    AlgorithmConfig *getConfig() const;
+
+    time_t getStart() const;
+
+    void setStart(time_t start);
+
+    time_t getEnd() const;
+
+    void setEnd(time_t end);
 };
 
-#endif // SOLVER_H
+
+#endif //LIB_COES_SOLVER_H

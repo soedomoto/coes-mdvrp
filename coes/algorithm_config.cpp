@@ -155,11 +155,11 @@ void AlgorithmConfig::setRouteDurationPenalty(float routeDurationPenalty) {
     this->routeDurationPenalty = routeDurationPenalty;
 }
 
-bool AlgorithmConfig::isSaveLogRunFile() const {
+const char *AlgorithmConfig::getSaveLogRunFile() const {
     return saveLogRunFile;
 }
 
-void AlgorithmConfig::setSaveLogRunFile(bool saveLogRunFile) {
+void AlgorithmConfig::setSaveLogRunFile(const char *saveLogRunFile) {
     this->saveLogRunFile = saveLogRunFile;
 }
 
@@ -210,55 +210,24 @@ void AlgorithmConfig::setParameters(MDVRPProblem *problem) {
 
     // Type of processing
     this->setProcessType(MULTI_THREAD);
-    //this->setProcessType(MONO_THREAD);
-
-    // DEBUG MODE
-    this->setDebug(DEBUG_VERSION);
 
     // Display or not information during the process
     this->setDisplay(true);
 
-    if (isDebug())   // Debug version
-    {
-        // Execution timeout (s) for criterion Stop == TIME
-        this->setExecutionTime(10 * 60.0); // 1.800 seg
+    // Execution timeout (s) for criterion Stop == TIME
+    this->setExecutionTime(10 * 60.0); // 1.800 seg
 
-        // Max time without update
-        this->setMaxTimeWithoutUpdate(5 * 60.0); // 600 seg.
+    // Max time without update
+    this->setMaxTimeWithoutUpdate(5 * 60.0); // 600 seg.
 
-        // Number of individuals in the subpopulation of deposits
-        // Mu value
-        this->setNumSubIndDepots(3);
-        // Lambda value
-        this->setNumOffspringsPerParent(1);
+    // Number of individuals in the subpopulation of depots
+    // Mu value
+    this->setNumSubIndDepots(3);
+    // Lambda value
+    this->setNumOffspringsPerParent(1);
 
-        // Elite group size
-        this->setEliteGroupLimit(5);
-    } else   // Production version
-    {
-        // Execution timeout (s) for criterion Stop == TIME
-        this->setExecutionTime(30 * 60.0); // 1.800 seg
-
-        // Max time without update
-        this->setMaxTimeWithoutUpdate(10 * 60.0); // 600 seg.
-
-        // Number of individuals in the subpopulation of deposits
-        // Mu value
-        this->setNumSubIndDepots(20);
-        // Lambda value
-        this->setNumOffspringsPerParent(5);
-
-        // Elite group size
-        this->setEliteGroupLimit(50);
-    }
-
-#if SOURCE == 1
-    // Save log run to file -- last result
-    this->setSaveLogRunFile(false);
-#else
-    // Save log run to file -- last result
-    this->setSaveLogRunFile(true);
-#endif
+    // Elite group size
+    this->setEliteGroupLimit(5);
 
     // Number of elements in the solution subpopulation
     // n - Problem depositos
@@ -321,4 +290,12 @@ string AlgorithmConfig::getLocalSearchTypeStringValue() {
 
     return ls;
 
+}
+
+bool AlgorithmConfig::isChange() const {
+    return change;
+}
+
+void AlgorithmConfig::setChange(bool change) {
+    AlgorithmConfig::change = change;
 }

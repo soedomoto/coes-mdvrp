@@ -41,10 +41,15 @@ set(SOURCE_FILES
         coes/sub_population.hpp
         coes/util.cpp
         coes/util.hpp
-        coes/global.hpp)
+        coes/global.hpp
+        coes/solver.cpp
+        coes/solver.h main.cpp coes/optparse.h)
 
 # Define the wrapper library that wraps our library
 add_library(lib_coes SHARED ${SOURCE_FILES})
+
+# Add executable
+add_executable(coes_bin ${SOURCE_FILES})
 
 # don't prepend wrapper library name with lib
 set_target_properties(lib_coes PROPERTIES PREFIX "")

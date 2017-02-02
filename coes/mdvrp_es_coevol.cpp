@@ -92,7 +92,7 @@ void ESCoevolMDVRP::run() {
     // ########################## ----------------
 
     // Print result
-    if (this->getConfig()->isSaveLogRunFile())
+    if (this->getConfig()->getSaveLogRunFile() != "")
         community->writeLogToFile();
 
     // Print final solution

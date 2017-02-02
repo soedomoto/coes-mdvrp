@@ -1,98 +1,16 @@
+//
+// Created by soedomoto on 31/01/17.
+//
+
 #include "solver.h"
-#include <string>
+#include "mdvrp_es_coevol.hpp"
 
-solver::solver() {
-    //ctor
-}
+Solver::Solver() {}
 
-solver::~solver() {
-    //dtor
-}
+Solver::~Solver() {}
 
-int const solver::solve() {
-    MDVRPProblem *problem = new MDVRPProblem();
-
-    time_t start, end;
-
-    char inst[10], dat[300], sol[300];
-
-    // FATORES A SEREM AVALIADOS
-    bool change = false;
-
-    int popSize;
-    float executionTime;
-    float maxTimeWithoutUpdate;
-    float mutationRatePLS;
-    int eliteGroupLimit;
-
-    strcpy(dat, BASE_DIR_DAT);
-    strcpy(sol, BASE_DIR_SOL);
-
-    strcat(dat, INST_TEST);
-    strcat(sol, INST_TEST);
-    strcpy(inst, INST_TEST);
-
-//    if (argc == 1) {
-//        strcat(dat, INST_TEST);
-//        strcat(sol, INST_TEST);
-//        strcpy(inst, INST_TEST);
-//    } else {
-//        strcat(dat, argv[1]);
-//        strcat(sol, argv[1]);
-//        strcpy(inst, argv[1]);
-//
-//        if (argc > 2) {
-//
-//            change = true;
-//
-//            popSize = atoi(argv[2]);
-//            executionTime = strtof(argv[3], NULL);
-//            maxTimeWithoutUpdate = strtof(argv[4], NULL);
-//            mutationRatePLS = strtof(argv[5], NULL);
-//            eliteGroupLimit = atoi(argv[6]);
-//
-//        }
-//    }
-
-    strcat(sol, ".res");
-
-    time(&start);
-
-    /* initialize random seed: */
-    Random::randomize();
-
-    // Read data file
-    if (!problem->processInstanceFiles(dat, sol, inst)) {
-        //std::cout << "Press enter to continue ...";
-        //std::cin.get();
-        return 1;
-    }
-
-    // Generation of data allocation - allocation N / M
-    //problem->printAllocation();
-    problem->printAllocationDependecy();
-    // return 0;
-
-    // # Settings for execution
-    AlgorithmConfig *config = new AlgorithmConfig();
+int const Solver::solve() {
     config->setParameters(problem);
-
-    if (change) {
-
-        config->setNumSubIndDepots(popSize);
-        config->setExecutionTime(executionTime);
-        config->setMaxTimeWithoutUpdate(maxTimeWithoutUpdate);
-        config->setMutationRatePLS(mutationRatePLS);
-        config->setEliteGroupLimit(eliteGroupLimit);
-
-        config->setWriteFactors(true);
-    }
-
-    //printf("INSTANCIA...: %s\n", problem->getInstCode().c_str());
-    //problem->print();
-    //LocalSearch::testFunction(problem, config);
-    //return(0);
-
 
     printf("=======================================================================================\n");
     printf("CoES -- A Cooperative Coevolutionary Algorithm for Multi-Depot Vehicle Routing Problems\n");
@@ -120,16 +38,11 @@ int const solver::solve() {
     if (config->getStopCriteria() == NUM_GER)
         printf("Generations....: %lu\n", config->getNumGen());
     else {
+        printf("Max time....: %.2f secs. ", config->getExecutionTime());
 
-        if (!change) {
-            printf("Max time....: %.2f secs. ", config->getExecutionTime());
-
-            if (config->getMaxTimeWithoutUpdate() > 0 &&
-                config->getMaxTimeWithoutUpdate() <= config->getExecutionTime())
-                printf("(or %.2f secs. no update)", config->getMaxTimeWithoutUpdate());
-
-            printf("\n");
-        }
+        if (config->getMaxTimeWithoutUpdate() > 0 &&
+            config->getMaxTimeWithoutUpdate() <= config->getExecutionTime())
+            printf("(or %.2f secs. no update)", config->getMaxTimeWithoutUpdate());
     }
 
     printf("\n====Factors for evaluation====\n");
@@ -160,4 +73,28 @@ int const solver::solve() {
     delete config;
 
     return 0;
+}
+
+MDVRPProblem *Solver::getProblem() const {
+    return problem;
+}
+
+AlgorithmConfig *Solver::getConfig() const {
+    return config;
+}
+
+time_t Solver::getStart() const {
+    return start;
+}
+
+void Solver::setStart(time_t start) {
+    Solver::start = start;
+}
+
+time_t Solver::getEnd() const {
+    return end;
+}
+
+void Solver::setEnd(time_t end) {
+    Solver::end = end;
 }

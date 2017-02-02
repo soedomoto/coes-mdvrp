@@ -6,7 +6,6 @@
  */
 
 #include "community.hpp"
-#include "path_relinking.hpp"
 
 /*
  * Constructors
@@ -198,7 +197,7 @@ void Community::writeLogToFile() {
     float gap = Util::calculateGAP(cost, this->getProblem()->getBestKnowSolution());
 
     FILE *fp;
-    fp = fopen(LOG_RUN_FILE, "a");
+    fp = fopen(this->getConfig()->getSaveLogRunFile(), "a");
 
     // Instancia;
     fprintf(fp, "%s;", this->getProblem()->getInstCode().c_str()); // c_str());

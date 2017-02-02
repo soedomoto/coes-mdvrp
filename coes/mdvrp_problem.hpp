@@ -124,7 +124,7 @@ public:
 
     void setNearestDepotsFromCustomer(typedef_vectorMatrix<int> nearestDepotsFromCustomer);
 
-    bool processInstanceFiles(char *dataFile, char *solutionFile, char *instCode);
+    bool processInstanceFilesOld(char *dataFile, char *solutionFile, char *instCode);
 
     void getDepotGroup(int depot, vector<int> &customers);
 
@@ -149,6 +149,8 @@ public:
     void printAllocation();
 
     void printAllocationDependecy();
+
+    bool processInstanceFiles(const char *problemName, const char *problemFile, const char *solutionFile);
 
 private:
 
