@@ -23,39 +23,39 @@ class AlgorithmConfig {
 private:
 
     // Algoritmo a ser executado
-    Enum_Algorithms algorithm;
+    Enum_Algorithms algorithm = Enum_Algorithms::ES;
 
-    enum Enum_StopCriteria stopCriteria; // Criterio de parada utilizado
-    enum Enum_Process_Type processType; // Tipo de processamento
+    enum Enum_StopCriteria stopCriteria = TEMPO; // Criterio de parada utilizado
+    enum Enum_Process_Type processType = MULTI_THREAD; // Tipo de processamento
 
     bool change;
     bool debug = false;
-    bool display;
+    bool display = true;
 
     unsigned long int numGen;
-    float executionTime; // Tempo limite de execucao (s) para criterioParada == TEMPO
-    float maxTimeWithoutUpdate;
+    float executionTime = 10 * 60.0; // Tempo limite de execucao (s) para criterioParada == TEMPO
+    float maxTimeWithoutUpdate = 5 * 60.0;
 
-    int totalMoves;
+    int totalMoves = 9;
     const char *saveLogRunFile;
 
-    int numSubIndDepots; // Mu value
-    int numOffspringsPerParent; // Lambda value
+    int numSubIndDepots = 3; // Mu value
+    int numOffspringsPerParent = 1; // Lambda value
     int numSolutionElem;
 
-    float mutationRatePM;
+    float mutationRatePM = 1.0;
 
-    enum Enum_Local_Search_Type localSearchType;
-    float mutationRatePLS;
+    enum Enum_Local_Search_Type localSearchType = Enum_Local_Search_Type::RANDOM;
+    float mutationRatePLS = 0.2;
 
-    float capacityPenalty;
-    float routeDurationPenalty;
-    float extraVehiclesPenalty;
-    float incompleteSolutionPenalty;
+    float capacityPenalty = pow(10, 3);
+    float routeDurationPenalty = pow(10, 3);
+    float extraVehiclesPenalty = pow(10, 3);
+    float incompleteSolutionPenalty = pow(10, 5);
 
-    bool writeFactors;
+    bool writeFactors = false;
 
-    int eliteGroupLimit;
+    int eliteGroupLimit = 5;
 
 public:
 

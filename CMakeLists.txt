@@ -52,4 +52,4 @@ add_library(lib_coes SHARED ${SOURCE_FILES})
 add_executable(coes_bin ${SOURCE_FILES})
 
 # don't prepend wrapper library name with lib
-set_target_properties(lib_coes PROPERTIES PREFIX "")
+set_target_properties(lib_coes PROPERTIES PREFIX "lib")

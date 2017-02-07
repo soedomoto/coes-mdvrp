@@ -83,6 +83,8 @@ int main(int argc, char const *const *argv) {
     solver->getConfig()->setIncompleteSolutionPenalty(atoi(options["solution_penalty"].c_str()));
     solver->getConfig()->setTotalMoves(atoi(options["total_moves"].c_str()));
 
+    solver->getConfig()->setProcessType(MONO_THREAD);
+
 //    solver->getConfig()->setAlgorithm(Enum_Algorithms::SSGPU);
 //    solver->getConfig()->setStopCriteria(TEMPO);
 //    solver->getConfig()->setProcessType(MONO_THREAD);

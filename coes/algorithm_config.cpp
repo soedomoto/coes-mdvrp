@@ -202,32 +202,32 @@ void AlgorithmConfig::setEliteGroupLimit(int eliteGroupLimit) {
 void AlgorithmConfig::setParameters(MDVRPProblem *problem) {
 
     // Algorithm to be executed
-    this->setAlgorithm(Enum_Algorithms::ES);
+    // this->setAlgorithm(Enum_Algorithms::ES);
 
     // Stop criterion used
-    this->setStopCriteria(TEMPO);
+    // this->setStopCriteria(TEMPO);
     //this->setStopCriteria(NUM_GER);
 
     // Type of processing
-    this->setProcessType(MULTI_THREAD);
+    // this->setProcessType(MULTI_THREAD);
 
     // Display or not information during the process
-    this->setDisplay(true);
+    // this->setDisplay(true);
 
     // Execution timeout (s) for criterion Stop == TIME
-    this->setExecutionTime(10 * 60.0); // 1.800 seg
+    // this->setExecutionTime(10 * 60.0); // 1.800 seg
 
     // Max time without update
-    this->setMaxTimeWithoutUpdate(5 * 60.0); // 600 seg.
+    // this->setMaxTimeWithoutUpdate(5 * 60.0); // 600 seg.
 
     // Number of individuals in the subpopulation of depots
     // Mu value
-    this->setNumSubIndDepots(3);
+    // this->setNumSubIndDepots(3);
     // Lambda value
-    this->setNumOffspringsPerParent(1);
+    // this->setNumOffspringsPerParent(1);
 
     // Elite group size
-    this->setEliteGroupLimit(5);
+    // this->setEliteGroupLimit(5);
 
     // Number of elements in the solution subpopulation
     // n - Problem depositos
@@ -237,18 +237,18 @@ void AlgorithmConfig::setParameters(MDVRPProblem *problem) {
     // PARAMETERS FOR EVOLUTION -------
     // - The list of de Mutation
     // -- Random
-    this->setMutationRatePM(1.0);
+    // this->setMutationRatePM(1.0);
     // -- Local Search
-    this->setLocalSearchType(Enum_Local_Search_Type::RANDOM);
-    this->setMutationRatePLS(0.2);
+    // this->setLocalSearchType(Enum_Local_Search_Type::RANDOM);
+    // this->setMutationRatePLS(0.2);
     // ----------------------------
 
     // Penalty for restricting the capacity of vehicles
-    this->setCapacityPenalty(pow(10, 3));
+    // this->setCapacityPenalty(pow(10, 3));
 
     // Extra vehicles
     // -- Penalty
-    this->setExtraVehiclesPenalty(pow(10, 3));
+    // this->setExtraVehiclesPenalty(pow(10, 3));
     // -- Relaxed version
     //this->setExtraVehiclesPenalty(0.0);
 
@@ -259,12 +259,12 @@ void AlgorithmConfig::setParameters(MDVRPProblem *problem) {
         this->setRouteDurationPenalty(0.0);
 
     // Penalty for incomplete solutions
-    this->setIncompleteSolutionPenalty(pow(10, 5));
+    // this->setIncompleteSolutionPenalty(pow(10, 5));
 
     // Total movements - LS
-    this->setTotalMoves(9);
+    // this->setTotalMoves(9);
 
-    this->setWriteFactors(false);
+    // this->setWriteFactors(false);
 
 }
 

@@ -144,6 +144,8 @@ public:
 
     void setGranularNeighborhood(typedef_vectorMatrix<int> granularNeighborhood);
 
+    void allocateMemory();
+
     void print();
 
     void printAllocation();
@@ -151,10 +153,6 @@ public:
     void printAllocationDependecy();
 
     bool processInstanceFiles(const char *problemName, const char *problemFile, const char *solutionFile);
-
-private:
-
-    void allocateMemory();
 
     void calculateMatrixDistance();
 
@@ -169,6 +167,9 @@ private:
     void setCustomerOnDepot(int customer);
 
     void operateGranularNeighborhood();
+
+private:
+
 
 };
 
