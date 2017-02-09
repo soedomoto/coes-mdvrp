@@ -94,7 +94,8 @@ void PathRelinking::operate(IndividualsGroup &initialSolution, IndividualsGroup 
         try {
 
             if (initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().at(route).getDemand()
-                + this->getProblem()->getDemand().at(customer) <= this->getProblem()->getCapacity()) {
+                + this->getProblem()->getDemand().at(customer) <=
+                this->getProblem()->getCapacities().at(pg.getDepot())) {
 
                 newSolution = initialSolution;
 

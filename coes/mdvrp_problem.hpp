@@ -21,17 +21,21 @@
 using namespace std;
 
 class MDVRPProblem {
-private:
 
+private:
     std::string instance;
     std::string instCode;
+
     float bestKnowSolution;
+
     int vehicles;
     int customers;
     int depots;
-    // Homogeneous fleet
-    int capacity;
-    float duration;
+
+    // Heterogeneus fleet
+    vector<int> capacities;
+    vector<float> durations;
+
     vector<typedef_point> customerPoints;
     vector<typedef_point> depotPoints;
     vector<int> demand;
@@ -62,10 +66,6 @@ public:
 
     void setBestKnowSolution(float bestKnowSolution);
 
-    int getCapacity() const;
-
-    void setCapacity(int capacity);
-
     typedef_vectorMatrix<float> &getCustomerDistances();
 
     vector<typedef_point> &getCustomerPoints();
@@ -84,9 +84,13 @@ public:
 
     vector<typedef_point> &getDepotPoints();
 
-    float getDuration() const;
+    vector<int> &getCapacities();
 
-    void setDuration(float duration);
+    void setCapacities(vector<int> capacities);
+
+    vector<float> &getDurations();
+
+    void setDurations(vector<float> durations);
 
     std::string getInstCode() const;
 

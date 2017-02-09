@@ -31,14 +31,6 @@ void MDVRPProblem::setBestKnowSolution(float bestKnowSolution) {
     this->bestKnowSolution = bestKnowSolution;
 }
 
-int MDVRPProblem::getCapacity() const {
-    return this->capacity;
-}
-
-void MDVRPProblem::setCapacity(int capacity) {
-    this->capacity = capacity;
-}
-
 // Distance [CLI][CLI];
 
 typedef_vectorMatrix<float> &MDVRPProblem::getCustomerDistances() {
@@ -77,14 +69,6 @@ typedef_vectorMatrix<float> &MDVRPProblem::getDepotDistances() {
 
 vector<typedef_point> &MDVRPProblem::getDepotPoints() {
     return this->depotPoints;
-}
-
-float MDVRPProblem::getDuration() const {
-    return this->duration;
-}
-
-void MDVRPProblem::setDuration(float duration) {
-    this->duration = duration;
 }
 
 std::string MDVRPProblem::getInstCode() const {
@@ -165,61 +149,52 @@ void MDVRPProblem::setNearestDepotsFromCustomer(typedef_vectorMatrix<int> neares
  */
 
 void MDVRPProblem::allocateMemory() {
+    this->setDepotPoints(vector<typedef_point>(this->getDepots()));
+    this->setDurations(vector<float>(this->getDepots()));
+    this->setCapacities(vector<int>(this->getDepots()));
 
     this->setCustomerPoints(vector<typedef_point>(this->getCustomers()));
-    this->setDepotPoints(vector<typedef_point>(this->getDepots()));
     this->setDemand(vector<int>(this->getCustomers()));
 
     typedef_vectorMatrix<float> customerDistances = typedef_vectorMatrix<float>(this->getCustomers());
     for (int i = 0; i < this->getCustomers(); ++i)
         customerDistances.at(i).resize(this->getCustomers());
-
     this->setCustomerDistances(customerDistances);
 
     typedef_vectorMatrix<float> depotDistances = typedef_vectorMatrix<float>(this->getDepots());
-
     for (int i = 0; i < this->getDepots(); ++i)
         depotDistances.at(i).resize(this->getCustomers());
-
     this->setDepotDistances(depotDistances);
 
     typedef_vectorMatrix<int> nearestCustomerFromCustomer = typedef_vectorMatrix<int>(
             this->getCustomers()); //  allocate_matrix_int(clientes, clientes);
-
     for (int i = 0; i < this->getCustomers(); ++i)
         nearestCustomerFromCustomer.at(i).resize(this->getCustomers());
     this->setNearestCustomerFromCustomer(nearestCustomerFromCustomer);
 
     typedef_vectorMatrix<int> nearestDepotsFromCustomer = typedef_vectorMatrix<int>(
             this->getCustomers()); //   allocate_matrix_int(clientes, depositos);
-
     for (int i = 0; i < this->getCustomers(); ++i)
         nearestDepotsFromCustomer.at(i).resize(this->getDepots());
     this->setNearestDepotsFromCustomer(nearestDepotsFromCustomer);
 
     typedef_vectorMatrix<int> nearestCustomersFromDepot = typedef_vectorMatrix<int>(
             this->getDepots()); //   allocate_matrix_int(depositos, clientes);
-
     for (int i = 0; i < this->getDepots(); ++i)
         nearestCustomersFromDepot.at(i).resize(this->getCustomers());
-
     this->setNearestCustomersFromDepot(nearestCustomersFromDepot);
 
     typedef_vectorMatrix<int> allocation = typedef_vectorMatrix<int>(
             this->getCustomers()); // allocate_matrix_int(clientes, depositos);
-
     for (int i = 0; i < this->getCustomers(); ++i)
         allocation.at(i).resize(this->getDepots());
-
     this->setAllocation(allocation);
 
     // Granular Neighborhoods
     typedef_vectorMatrix<int> granularNeighborhood = typedef_vectorMatrix<int>(
             this->getCustomers()); // allocate_matrix_int(clientes, depositos);
-
     for (int i = 0; i < this->getCustomers(); ++i)
         granularNeighborhood.at(i).resize(this->getCustomers());
-
     this->setGranularNeighborhood(granularNeighborhood);
 
 }
@@ -265,8 +240,8 @@ bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *pro
     for (i = 0; i < this->getDepots(); ++i) {
         //fscanf(data, "%f %d", &problema.duracao, &problema.capacidade);
         fscanf(problem, "%f %d", &valueFloat, &valueInt);
-        this->setDuration(valueFloat);
-        this->setCapacity(valueInt);
+        this->getDurations().at(valueFloat);
+        this->getCapacities().at(valueInt);
     }
 
     // Customer informations
@@ -300,88 +275,6 @@ bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *pro
     fclose(problem);
 
     return true;
-}
-
-bool MDVRPProblem::processInstanceFilesOld(char *dataFile, char *solutionFile, char *instCode) {
-
-    FILE *data;
-    FILE *solution;
-    int i, type, vehicles, customers, depots, valueInt;
-    float valueFloat;
-    typedef_point point;
-
-
-    data = fopen(dataFile, "r");
-    solution = fopen(solutionFile, "r");
-
-    if (data == NULL) {
-        printf("Error opening file = %s \n\n", dataFile);
-        return false;
-    }
-
-    if (solution == NULL) {
-        printf("Error opening file = %s \n\n", dataFile);
-        return false;
-    }
-
-    this->setInstCode(instCode);
-
-    // Problem informations
-    fscanf(data, "%d %d %d %d", &type, &vehicles, &customers, &depots);
-    this->setDepots(depots);
-    this->setVehicles(vehicles);
-    this->setCustomers(customers);
-
-    // Allocate memory using problem informations
-    this->allocateMemory();
-
-    // Instance
-    this->setInstance(dataFile);
-
-    // Best know solution
-    fscanf(solution, "%f", &valueFloat);
-    this->setBestKnowSolution(valueFloat);
-
-    // Capacity and duration - homogeneous problems
-    for (i = 0; i < this->getDepots(); ++i) {
-        //fscanf(data, "%f %d", &problema.duracao, &problema.capacidade);
-        fscanf(data, "%f %d", &valueFloat, &valueInt);
-        this->setDuration(valueFloat);
-        this->setCapacity(valueInt);
-    }
-
-    // Customer informations
-    for (i = 0; i < this->getCustomers(); ++i) {
-        fscanf(data, "%d %f %f %d %d", &type, &point.x, &point.y, &type, &valueInt);
-
-        this->getCustomerPoints().at(i) = point;
-        this->getDemand().at(i) = valueInt;
-
-        while (getc(data) != '\n');
-    }
-
-    // Depot informations
-    for (i = 0; i < this->getDepots(); ++i) {
-        fscanf(data, "%d %f %f", &type, &point.x, &point.y);
-        this->getDepotPoints().at(i) = point;
-
-        while (getc(data) != '\n' && !feof(data));
-    }
-
-    this->calculateMatrixDistance();
-    this->setNearestCustomersFromCustomer();
-    this->setNearestCustomersFromDepot();
-    this->setNearestDepotsFromCustomer();
-
-    this->defineIntialCustomersAllocation();
-
-    this->operateGranularNeighborhood();
-
-    fclose(solution);
-    fclose(data);
-
-    return true;
-
 }
 
 void MDVRPProblem::calculateMatrixDistance() {
@@ -620,7 +513,8 @@ void MDVRPProblem::print() {
 
     for (i = 0; i < this->getDepots(); ++i)
         printf("D: %i -> Pontos: (%f, %f) -- Capacidade: %d -- Duracao: %.2f\n", i + 1,
-               this->getDepotPoints()[i].x, this->getDepotPoints()[i].y, this->getCapacity(), this->getDuration());
+               this->getDepotPoints()[i].x, this->getDepotPoints()[i].y, this->getCapacities().at(i),
+               this->getDurations().at(i));
 
     printf("\n\n");
 
@@ -743,4 +637,20 @@ void MDVRPProblem::operateGranularNeighborhood() {
         cout << endl;
     }
     */
+}
+
+vector<int> &MDVRPProblem::getCapacities() {
+    return this->capacities;
+}
+
+void MDVRPProblem::setCapacities(vector<int> capacities) {
+    this->capacities = capacities;
+}
+
+vector<float> &MDVRPProblem::getDurations() {
+    return this->durations;
+}
+
+void MDVRPProblem::setDurations(vector<float> durations) {
+    this->durations = durations;
 }

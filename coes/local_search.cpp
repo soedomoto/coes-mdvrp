@@ -6,7 +6,6 @@
  */
 
 #include "local_search.hpp"
-#include "individual.hpp"
 
 /*
  * Constructors and Destructor
@@ -254,7 +253,8 @@ bool LocalSearch::operateMoveDepotRouteM1(Route &ru, Route &rv, bool equal) {
 
         for (auto iterRU = ru.getTour().begin(); iterRU != ru.getTour().end(); ++iterRU) {
 
-            if (rv.getProblem()->getDemand().at((*iterRU) - 1) + rv.getDemand() > rv.getProblem()->getCapacity())
+            if (rv.getProblem()->getDemand().at((*iterRU) - 1) + rv.getDemand() >
+                rv.getProblem()->getCapacities().at(rv.getDepot()))
                 continue;
 
             Route newRU = ru;
@@ -434,7 +434,7 @@ bool LocalSearch::operateMoveDepotRouteM2(Route &ru, Route &rv, bool equal, bool
             demand = rv.getProblem()->getDemand().at((*iterRU) - 1);
             demand += rv.getProblem()->getDemand().at((*next(iterRU)) - 1);
 
-            if (demand + rv.getDemand() > rv.getProblem()->getCapacity())
+            if (demand + rv.getDemand() > rv.getProblem()->getCapacities().at(rv.getDepot()))
                 continue;
 
             //ru.printSolution();
@@ -603,12 +603,12 @@ bool LocalSearch::operateMoveDepotRouteM4(Route &ru, Route &rv, bool equal) {
 
                 demand = rv.getDemand() - rv.getProblem()->getDemand().at((*iterRV) - 1) +
                          rv.getProblem()->getDemand().at((*iterRU) - 1);
-                if (demand > rv.getProblem()->getCapacity())
+                if (demand > rv.getProblem()->getCapacities().at(rv.getDepot()))
                     continue;
 
                 demand = ru.getDemand() - ru.getProblem()->getDemand().at((*iterRU) - 1) +
                          ru.getProblem()->getDemand().at((*iterRV) - 1);
-                if (demand > rv.getProblem()->getCapacity())
+                if (demand > rv.getProblem()->getCapacities().at(rv.getDepot()))
                     continue;
 
                 //ru.printSolution();
@@ -840,7 +840,7 @@ bool LocalSearch::operateMoveDepotRouteM5(Route &ru, Route &rv, bool equal) {
             while (!endProcess) {
 
                 if (rv.getDemand() - rv.getProblem()->getDemand().at((*iterRV) - 1) + demand >
-                    rv.getProblem()->getCapacity()) {
+                    rv.getProblem()->getCapacities().at(rv.getDepot())) {
                     iterRV++;
 
                     if (iterRV == rv.getTour().end())
@@ -1043,11 +1043,11 @@ bool LocalSearch::operateMoveDepotRouteM6(Route &ru, Route &rv, bool equal) {
                 demandV += rv.getProblem()->getDemand().at(customerVPP - 1);
 
                 // If the capacity is exceeded swapping U and V
-                if (ru.getDemand() - demandU + demandV > ru.getProblem()->getCapacity())
+                if (ru.getDemand() - demandU + demandV > ru.getProblem()->getCapacities().at(rv.getDepot()))
                     continue;
 
                 // If the capacity is exceeded swapping V and U
-                if (rv.getDemand() - demandV + demandU > rv.getProblem()->getCapacity())
+                if (rv.getDemand() - demandV + demandU > rv.getProblem()->getCapacities().at(rv.getDepot()))
                     continue;
 
                 // Avoid repeated customers

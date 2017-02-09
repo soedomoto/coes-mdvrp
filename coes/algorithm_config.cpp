@@ -253,10 +253,10 @@ void AlgorithmConfig::setParameters(MDVRPProblem *problem) {
     //this->setExtraVehiclesPenalty(0.0);
 
     // Route duration
-    if (problem->getDuration() > 0)
-        this->setRouteDurationPenalty(pow(10, 3));
-    else
-        this->setRouteDurationPenalty(0.0);
+//    if (problem->getDuration() > 0)
+//        this->setRouteDurationPenalty(pow(10, 3));
+//    else
+//        this->setRouteDurationPenalty(0.0);
 
     // Penalty for incomplete solutions
     // this->setIncompleteSolutionPenalty(pow(10, 5));

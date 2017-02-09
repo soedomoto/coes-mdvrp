@@ -47,8 +47,11 @@ JNIEXPORT jint JNICALL Java_com_soedomoto_vrp_solver_CoESVRPJNI_solve
     problem->setBestKnowSolution(1.0);
 
     for (int i = 0; i < problem->getDepots(); ++i) {
-        problem->setDuration(jvDurations[i]);
-        problem->setCapacity(jvCapacities[i]);
+//        problem->setDuration(jvDurations[i]);
+//        problem->setCapacity(jvCapacities[i]);
+
+        problem->getDurations().at(i) = jvDurations[i];
+        problem->getCapacities().at(i) = jvCapacities[i];
 
         typedef_point point;
         point.x = jvXDepots[i];
@@ -94,8 +97,8 @@ JNIEXPORT jint JNICALL Java_com_soedomoto_vrp_solver_CoESVRPJNI_solve
     printf("Instance....: %s\n", problem->getInstance().c_str());
     printf("Depots......: %d\n", problem->getDepots());
     printf("Vehicles....: %d\n", problem->getVehicles());
-    printf("Capacity....: %d\n", problem->getCapacity());
-    printf("Duration....: %.2f\n", problem->getDuration());
+    printf("Capacity....: %d\n", problem->getCapacities().at(0));
+    printf("Duration....: %.2f\n", problem->getDurations().at(0));
     printf("Customers...: %d\n", problem->getCustomers());
 
     if (config->getStopCriteria() == NUM_GER)

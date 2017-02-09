@@ -552,11 +552,11 @@ void Individual::split() {
 
     //this->print();
 
-    if (this->getProblem()->getDuration() > 0) {
+    if (this->getProblem()->getDurations().at(this->getDepot()) > 0) {
         if (this->isRelaxSplit())
-            routeDuration = 2 * this->getProblem()->getDuration();
+            routeDuration = 2 * this->getProblem()->getDurations().at(this->getDepot());
         else
-            routeDuration = this->getProblem()->getDuration();
+            routeDuration = this->getProblem()->getDurations().at(this->getDepot());
     } else
         // Infinite
         routeDuration = FLT_MAX;
@@ -613,7 +613,7 @@ void Individual::split() {
                        + this->getProblem()->getDepotDistances().at(this->getDepot()).at(c);
             }
 
-            if (load <= this->getProblem()->getCapacity() && cost <= routeDuration) {
+            if (load <= this->getProblem()->getCapacities().at(this->getDepot()) && cost <= routeDuration) {
                 if (V.at(i) + cost < V.at(j + 1)) {
                     V.at(j + 1) = V.at(i) + cost;
                     P.at(j + 1) = i;
@@ -622,7 +622,8 @@ void Individual::split() {
             }
 
             // Until
-        } while ((j < length) && (load <= this->getProblem()->getCapacity()) && (cost <= routeDuration));
+        } while ((j < length) && (load <= this->getProblem()->getCapacities().at(this->getDepot())) &&
+                 (cost <= routeDuration));
     }
 
     this->splitExtract(P);

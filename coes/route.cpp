@@ -169,19 +169,24 @@ float Route::getTotalCost() {
 }
 
 void Route::updatePenalty() {
+    float durationPenalty = 0.0;
+    if (this->getProblem()->getDurations().at(this->getDepot()) > 0) {
+        durationPenalty = this->getConfig()->getRouteDurationPenalty();
+    }
 
-    if (this->getProblem()->getDuration() > 0 && this->getCost() > this->getProblem()->getDuration())
+    if (this->getProblem()->getDurations().at(this->getDepot()) > 0 &&
+        this->getCost() > this->getProblem()->getDurations().at(this->getDepot()))
         this->setPenaltyDuration(
-                this->getConfig()->getRouteDurationPenalty() * (this->getCost() - this->getProblem()->getDuration()));
+                durationPenalty * (this->getCost() - this->getProblem()->getDurations().at(this->getDepot())));
     else
         this->setPenaltyDuration(0.0);
 
-    if (this->getDemand() > this->getProblem()->getCapacity())
+    if (this->getDemand() > this->getProblem()->getCapacities().at(this->getDepot()))
         this->setPenaltyDemand(
-                this->getConfig()->getCapacityPenalty() * (this->getDemand() - this->getProblem()->getCapacity()));
+                this->getConfig()->getCapacityPenalty() *
+                (this->getDemand() - this->getProblem()->getCapacities().at(this->getDepot())));
     else
         this->setPenaltyDemand(0.0);
-
 }
 
 // Add customer at the front of the list
