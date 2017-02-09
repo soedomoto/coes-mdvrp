@@ -6,6 +6,7 @@
  */
 
 #include "individuals_group.hpp"
+#include "global.hpp"
 
 /*
  * Constructors and Destructor

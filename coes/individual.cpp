@@ -844,7 +844,6 @@ typedef_location Individual::getMinimalPositionToInsert(int customer) {
     bestLocation.cost = localSaving;
 
     for (auto i = this->getGene().begin(); i != this->getGene().end(); ++i) {
-
         if (next(i) == this->getGene().end())
             break;
 

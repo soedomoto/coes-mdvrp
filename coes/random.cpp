@@ -59,7 +59,8 @@ int Random::randIntBetween(int x0, int x1) {
         return -1;
     }
 
-    return (std::rand() % (x1 + 1 - x0)) + x0;
+    int rand = std::rand();
+    return (rand % (x1 + 1 - x0)) + x0;
 
 //    return uniformIntDiscreteDistribution(x0, x1);
 
