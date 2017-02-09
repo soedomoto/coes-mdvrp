@@ -1,15 +1,12 @@
 cmake_minimum_required(VERSION 2.8)
-project(lib_jcoes)
+project(jcoes_mdvrp)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -fPIC")
 
-# Find necessary packages
-#set(LIB_COES_INCLUDE_DIRS "/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/lib_coes/coes")
-#message("CoES includes: " ${LIB_COES_INCLUDE_DIRS})
 #include_directories("/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/lib_coes/coes")
 #link_directories("/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/lib_coes/cmake-build-debug/")
 
-include_directories(coes)
+include_directories(coes jni)
 
 find_package(JNI)
 message("JNI includes: " ${JNI_INCLUDE_DIRS})
@@ -17,8 +14,8 @@ include_directories(${JNI_INCLUDE_DIRS})
 
 # Build our library
 set(SOURCE_FILES
-        com_soedomoto_vrp_solver_CoESVRPJNI.h
-        com_soedomoto_vrp_solver_CoESVRPJNI.cpp
+        jni/com_soedomoto_vrp_solver_CoESVRPJNI.h
+        jni/com_soedomoto_vrp_solver_CoESVRPJNI.cpp
         coes/algorithm_config.cpp
         coes/algorithm_config.hpp
         coes/community.cpp
@@ -56,14 +53,5 @@ set(SOURCE_FILES
         coes/global.hpp
         )
 
-add_library(lib_jcoes SHARED ${SOURCE_FILES})
-# target_link_libraries(lib_jcoes ${JNI_LIBRARIES} liblib_coes.so)
-
-# message("JNI Libraries: " ${JNI_LIBRARIES})
-# target_link_libraries(lib_jcoes ${JNI_LIBRARIES})
-
-# Define the wrapper library that wraps our library
-# target_link_libraries(lib_jcoes ~/lib_coes.so)
-
-# don't prepend wrapper library name with lib
-set_target_properties(lib_jcoes PROPERTIES PREFIX "lib")
+add_library(jcoes_mdvrp SHARED ${SOURCE_FILES})
+set_target_properties(jcoes_mdvrp PROPERTIES PREFIX "lib")
