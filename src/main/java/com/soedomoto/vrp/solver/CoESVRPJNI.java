@@ -5,7 +5,7 @@ package com.soedomoto.vrp.solver;
  */
 public class CoESVRPJNI {
     static {
-        System.loadLibrary("jcoes_mdvrp");
+        System.loadLibrary("jni_coes_mdvrp");
     }
 
     public native void setVehicles(int size, float[] xDepots, float[] yDepots, float[] durations, int[] capacity);

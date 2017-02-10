@@ -101,9 +101,9 @@ public abstract class CoESVRPSolver extends AbstractVRPSolver implements Runnabl
                 for (int i = 0; i < solDepots.length; i++) {
                     long eId = vIds[solDepots[i]];
 
-                    routes.putIfAbsent(eId, new ArrayList());
-                    demands.putIfAbsent(eId, 0);
-                    costs.putIfAbsent(eId, 0.0f);
+                    if(! routes.keySet().contains(eId)) routes.put(eId, new ArrayList());
+                    if(! demands.keySet().contains(eId)) demands.put(eId, 0);
+                    if(! costs.keySet().contains(eId)) costs.put(eId, 0.0f);
 
                     for (int c : solCustomers[i]) {
                         try {
@@ -153,51 +153,4 @@ public abstract class CoESVRPSolver extends AbstractVRPSolver implements Runnabl
 
         onFinished(this.channel, Arrays.asList(vIds), unassignedBses.keySet());
     }
-
-//    public static void main(String args[]) throws IOException {
-//        List<String> problemLines = IOUtils.readLines(new FileInputStream(args[0]), Charset.defaultCharset());
-//        List<String> solutionLines = IOUtils.readLines(new FileInputStream(args[1]), Charset.defaultCharset());
-//
-//        String[] ivcd = problemLines.get(0).trim().split("\\s+");
-//        int vSize = Integer.parseInt(ivcd[1]);
-//        int cSize = Integer.parseInt(ivcd[2]);
-//        int dSize = Integer.parseInt(ivcd[3]);
-//        float[] vDurations = new float[vSize];
-//        int[] vCapacities = new int[vSize];
-//        float[] cXDepots = new float[cSize];
-//        float[] cYDepots = new float[cSize];
-//        int[] cDemands = new int[cSize];
-//        float[] vXDepots = new float[vSize];
-//        float[] vYDepots = new float[vSize];
-//
-//        for (int i = 0; i < dSize; ++i) {
-//            String[] dc = problemLines.get(i + 1).trim().split("\\s+");
-//            vDurations[i] = Float.valueOf(dc[0]);
-//            vCapacities[i] = Integer.valueOf(dc[1]);
-//        }
-//
-//        for (int i = 0; i < cSize; ++i) {
-//            String[] ixytd = problemLines.get(i + dSize + 1).trim().split("\\s+");
-//
-//            cXDepots[i] = Float.parseFloat(ixytd[1]);
-//            cYDepots[i] = Float.parseFloat(ixytd[2]);
-//            cDemands[i] = Integer.valueOf(ixytd[4]);
-//        }
-//
-//        for (int i = 0; i < dSize; ++i) {
-//            String[] ixy = problemLines.get(i + dSize + cSize + 1).split("\\s+");
-//
-//            vXDepots[i] = Float.parseFloat(ixy[1]);
-//            vYDepots[i] = Float.parseFloat(ixy[2]);
-//        }
-//
-//        String[] b = solutionLines.get(0).trim().split("\\s+");
-//        float bestKnowSolution = Float.parseFloat(b[0]);
-//
-//        final CoESVRPJNI coes = new CoESVRPJNI();
-//        coes.setVehicles(vSize, vXDepots, vYDepots, vDurations, vCapacities);
-//        coes.setCustomers(cSize, cXDepots, cYDepots, cDemands);
-//        int code = coes.solve();
-//        System.out.println(code);
-//    }
 }
