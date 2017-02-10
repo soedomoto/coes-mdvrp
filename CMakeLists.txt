@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(jcoes_mdvrp)
+project(jni_coes_mdvrp)
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -fPIC")
 
@@ -57,7 +57,7 @@ set(SOURCE_FILES
         coes/global.hpp
         )
 
-add_library(jcoes_mdvrp SHARED ${SOURCE_FILES})
-set_target_properties(jcoes_mdvrp PROPERTIES PREFIX "lib")
+add_library(jni_coes_mdvrp SHARED ${SOURCE_FILES})
+set_target_properties(jni_coes_mdvrp PROPERTIES PREFIX "lib")
 
-add_executable(jcoes_mdvrp_bin ${SOURCE_FILES})
+add_executable(jni_coes_mdvrp_bin ${SOURCE_FILES})
