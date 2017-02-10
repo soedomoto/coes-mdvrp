@@ -8,7 +8,6 @@
 #include "util.hpp"
 #include "algorithm_config.hpp"
 #include "route.hpp"
-#include "local_search.hpp"
 
 /*
  * Constructors
@@ -167,10 +166,10 @@ void Util::selectVectorOrder(vector<typedef_order> &order) {
     }
 }
 
-float Util::calculateEucDist2D(int x1, int y1, int x2, int y2) {
+float Util::calculateEucDist2D(float x1, float y1, float x2, float y2) {
 
-    int xd = x1 - x2;
-    int yd = y1 - y2;
+    float xd = x1 - x2;
+    float yd = y1 - y2;
 
     return sqrtf(xd * xd + yd * yd);
 }

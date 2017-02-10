@@ -92,8 +92,8 @@ void ESCoevolMDVRP::run() {
     // ########################## ----------------
 
     // Print result
-    if (this->getConfig()->getSaveLogRunFile() != "")
-        community->writeLogToFile();
+//    if (this->getConfig()->getSaveLogRunFile() != "")
+//        community->writeLogToFile();
 
     // Print final solution
     community->getEliteGroup()->getBest().printSolution();

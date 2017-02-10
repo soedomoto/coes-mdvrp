@@ -294,6 +294,7 @@ int Individual::find(int customer) {
 void Individual::create() {
 
     this->generateInitialSolutionRandomNearestInsertion();
+    // this->getProblem()->getMonitor().addToLog("Gene size : " + std::to_string(this->getGene().size()));
     this->setNumOperations(Random::randIntBetween(1, this->getGene().size()));
     //this->evaluate(true);
 
@@ -1028,7 +1029,8 @@ void Individual::generateInitialSolutionRandomNearestInsertion() {
                 // Get a random customer with nRCL - semi-greedy
                 k = -1;
                 while (k == -1) {
-                    k = Random::randIntBetween(0, nRCL - 1);
+                    k = 0;
+                    if (nRCL > 0) k = Random::randIntBetween(0, nRCL - 1);
                     k = closest.at(k);
 
                     // If customer is not allocated in the depot

@@ -132,33 +132,16 @@ void Community::evaluateSubpops(bool firstEvaluation) {
 }
 
 void Community::printEvolution() {
+    float gap = Util::calculateGAP(this->getEliteGroup()->getBest().getTotalCost(),
+                                   this->getProblem()->getBestKnowSolution());
 
-    if (this->getConfig()->getProcessType() == Enum_Process_Type::MONO_THREAD) {
-
-        float gap = Util::calculateGAP(this->getEliteGroup()->getBest().getTotalCost(),
-                                       this->getProblem()->getBestKnowSolution());
-
-        char *msg =  new char[500];;
-        sprintf(msg, "%lu; %.2f; %.2f; %.2f; %.2f\n", this->getProblem()->getMonitor().getGeneration(),
-               Util::diffTimeFromStart(this->getProblem()->getMonitor().getStart()),
-               this->getEliteGroup()->getBest().getTotalCost(),
-               this->getProblem()->getBestKnowSolution(),
-               gap);
-        this->getProblem()->getMonitor().addToLog(msg);
-    } else {
-
-        for_each(this->getEvolution().begin(), this->getEvolution().end(), [&](typedef_evolution &evol) {
-            float gap = Util::calculateGAP(evol.cost,
-                                           this->getProblem()->getBestKnowSolution());
-
-            printf("%.2f; %.2f; %.2f; %.2f\n", evol.time, evol.cost,
-                   this->getProblem()->getBestKnowSolution(),
-                   gap);
-        });
-
-
-    }
-
+    char *msg = new char[500];;
+    sprintf(msg, "%lu; %.2f; %.2f; %.2f; %.2f\n", this->getProblem()->getMonitor().getGeneration(),
+            Util::diffTimeFromStart(this->getProblem()->getMonitor().getStart()),
+            this->getEliteGroup()->getBest().getTotalCost(),
+            this->getProblem()->getBestKnowSolution(),
+            gap);
+    this->getProblem()->getMonitor().addToLog(msg);
 }
 
 bool Community::isStopCriteriaMet() {

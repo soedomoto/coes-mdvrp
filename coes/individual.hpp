@@ -180,6 +180,8 @@ public:
 
     void printVehicles();
 
+    void updateRoutesID();
+
 private:
 
     void generateInitialSolutionRandomNearestInsertion();
@@ -189,8 +191,6 @@ private:
     void splitExtractWithoutVehicleLimit(vector<int> &P);
 
     void splitExtractVehicleLimited(vector<int> &P);
-
-    void updateRoutesID();
 
 };
 

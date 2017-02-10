@@ -55,7 +55,7 @@ public:
 
     static void selectVectorOrder(vector<typedef_order> &order);
 
-    static float calculateEucDist2D(int x1, int y1, int x2, int y2);
+    static float calculateEucDist2D(float x1, float y1, float x2, float y2);
 
 private:
 
