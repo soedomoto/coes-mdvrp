@@ -251,7 +251,7 @@ void Random::randTwoNumbers(int min, int max, int &n1, int &n2) {
     int x = randIntBetween(min, max);
     int y = x;
 
-    while (y == x) {
+    while (y == x && x != 0 && y != 0) {
         y = randIntBetween(min, max);
     }
 

@@ -5,6 +5,8 @@
  * Created on July 21, 2014, 2:10 PM
  */
 
+#include <fstream>
+#include <sstream>
 #include "mdvrp_problem.hpp"
 
 /*
@@ -202,11 +204,21 @@ void MDVRPProblem::allocateMemory() {
 bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *problemFile, const char *solutionFile) {
     this->setInstCode(problemName);
 
-    FILE *problem;
-    problem = fopen(problemFile, "r");
-    if (problem == NULL) {
-        printf("Error opening file = %s \n\n", problemFile);
-        return false;
+    ifstream inProblem;
+    inProblem.open(problemFile);
+    stringstream inStream;
+    inStream << inProblem.rdbuf();
+
+    vector<vector<string>> arrLines;
+    string strProblem;
+    while (std::getline(inStream, strProblem, '\n')) {
+        vector<string> arrCol;
+        istringstream f(strProblem);
+        string s;
+        while (getline(f, s, ' ')) {
+            arrCol.push_back(s);
+        }
+        arrLines.push_back(arrCol);
     }
 
     FILE *solution;
@@ -221,10 +233,9 @@ bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *pro
     typedef_point point;
 
     // Problem informations
-    fscanf(problem, "%d %d %d %d", &type, &vehicles, &customers, &depots);
-    this->setDepots(depots);
-    this->setVehicles(vehicles);
-    this->setCustomers(customers);
+    this->setDepots(stoi(arrLines.at(0).at(3)));
+    this->setVehicles(stoi(arrLines.at(0).at(1)));
+    this->setCustomers(stoi(arrLines.at(0).at(2)));
 
     // Allocate memory using problem informations
     this->allocateMemory();
@@ -236,33 +247,56 @@ bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *pro
     fscanf(solution, "%f", &valueFloat);
     this->setBestKnowSolution(valueFloat);
 
+    int idx = 1;
     // Capacity and duration - homogeneous problems
     for (i = 0; i < this->getDepots(); ++i) {
-        //fscanf(data, "%f %d", &problema.duracao, &problema.capacidade);
-        fscanf(problem, "%f %d", &valueFloat, &valueInt);
-        this->getDurations().at(valueFloat);
-        this->getCapacities().at(valueInt);
+        this->getDurations().at(i) = stof(arrLines.at(idx).at(0));
+        this->getCapacities().at(i) = stoi(arrLines.at(idx).at(1));
+        idx++;
     }
 
     // Customer informations
     for (i = 0; i < this->getCustomers(); ++i) {
-        fscanf(problem, "%d %f %f %d %d", &type, &point.x, &point.y, &type, &valueInt);
+        point.x = stof(arrLines.at(idx).at(1));
+        point.y = stof(arrLines.at(idx).at(2));
+        valueInt = stoi(arrLines.at(idx).at(4));
 
         this->getCustomerPoints().at(i) = point;
         this->getDemand().at(i) = valueInt;
-
-        while (getc(problem) != '\n');
+        idx++;
     }
 
     // Depot informations
     for (i = 0; i < this->getDepots(); ++i) {
-        fscanf(problem, "%d %f %f", &type, &point.x, &point.y);
-        this->getDepotPoints().at(i) = point;
+        point.x = stof(arrLines.at(idx).at(1));
+        point.y = stof(arrLines.at(idx).at(2));
 
-        while (getc(problem) != '\n' && !feof(problem));
+        this->getDepotPoints().at(i) = point;
+        idx++;
     }
 
     this->calculateMatrixDistance();
+
+    double totalC2CDistance = 0.0;
+    for (i = 0; i < this->getCustomers(); ++i) {
+        for (int j = 0; j < this->getCustomers(); ++j) {
+            this->getCustomerDistances().at(i).at(j) = stof(arrLines.at(idx).at(j));
+            totalC2CDistance += this->getCustomerDistances().at(i).at(j);
+        }
+        idx++;
+    }
+    this->setAvgCustomerDistance(totalC2CDistance / (double) (this->getCustomers() * this->getCustomers()));
+
+    double totalD2CDistance = 0.0;
+    for (int i = 0; i < this->getDepots(); ++i) {
+        for (int j = 0; j < this->getCustomers(); ++j) {
+            this->getDepotDistances().at(i).at(j) = stof(arrLines.at(idx).at(j));
+            totalD2CDistance += this->getDepotDistances().at(i).at(j);
+        }
+        idx++;
+    }
+    this->setAvgDepotDistance(totalD2CDistance / (double) (this->getCustomers() * 1.0));
+
     this->setNearestCustomersFromCustomer();
     this->setNearestCustomersFromDepot();
     this->setNearestDepotsFromCustomer();
@@ -272,7 +306,6 @@ bool MDVRPProblem::processInstanceFiles(const char *problemName, const char *pro
     this->operateGranularNeighborhood();
 
     fclose(solution);
-    fclose(problem);
 
     return true;
 }

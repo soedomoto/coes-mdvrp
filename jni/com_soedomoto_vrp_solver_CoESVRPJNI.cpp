@@ -271,6 +271,12 @@ JNIEXPORT jint JNICALL Java_com_soedomoto_vrp_solver_CoESVRPJNI_solve
         numRoutes += individual.getNumVehicles();
     });
 
+    depots = vector<int>(0);
+    routes = vector<int>(0);
+    costs = vector<float>(0);
+    demands = vector<int>(0);
+    customers = vector<vector<int>>(0);
+
     for_each(best.getIndividuals().begin(), best.getIndividuals().end(), [&](Individual &individual) {
         individual.updateRoutesID();
         for_each(individual.getRoutes().begin(), individual.getRoutes().end(), [&](Route &route) {

@@ -392,7 +392,7 @@ void IndividualsGroup::shrink(IndividualsGroup &source) {
     std::sort(this->getRanks().begin(), this->getRanks().end(), Rank::compare);
 
     int i = 0, w = 0;
-    while (w < this->getIndividuals().size()) {
+    while (w < this->getIndividuals().size() && i < this->getRanks().size()) {
         if (this->getProblem()->getMonitor().isTerminated())
             break;
 
