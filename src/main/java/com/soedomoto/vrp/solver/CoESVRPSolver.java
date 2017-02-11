@@ -1,8 +1,11 @@
 package com.soedomoto.vrp.solver;
 
 import com.soedomoto.vrp.App;
-import com.soedomoto.vrp.model.CensusBlock;
+import com.soedomoto.vrp.model.dao.CensusBlock;
+import com.soedomoto.vrp.model.solution.Point;
+import org.apache.log4j.Logger;
 
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -10,63 +13,67 @@ import java.util.*;
  * Created by soedomoto on 03/02/17.
  */
 public abstract class CoESVRPSolver extends AbstractVRPSolver implements Runnable, VRPSolver {
-    public CoESVRPSolver(App app, String channel) throws SQLException {
-        super(app, channel);
+    private final static Logger LOG = Logger.getLogger(CoESVRPSolver.class.getName());
+
+    public CoESVRPSolver(App app, String channel, String brokerUrl) throws SQLException, URISyntaxException {
+        super(app, channel, brokerUrl);
     }
 
     public void run() {
-        // Vehicles
-        int vSize = allEnumerators.size();
-        Long[] vIds = new Long[vSize];
-        float[] vXDepots = new float[vSize];
-        float[] vYDepots = new float[vSize];
-        float[] vDurations = new float[vSize];
-        int[] vCapacities = new int[vSize];
+        super.run();
 
-        int iE = 0;
+        // Vehicles
+        int enumeratorSize = allEnumerators.size();
+        Long[] enumeratorIds = new Long[enumeratorSize];
+        float[] enumeratorDepotXs = new float[enumeratorSize];
+        float[] enumeratorDepotYs = new float[enumeratorSize];
+        float[] enumeratorDurations = new float[enumeratorSize];
+        int[] enumeratorCapacities = new int[enumeratorSize];
+
+        int idx = 0;
         for(Long eId : allEnumerators.keySet()) {
             long dId = allEnumerators.get(eId).getDepot();
-            vIds[iE] = dId;
-            vXDepots[iE] = (float) allBses.get(dId).getLon();
-            vYDepots[iE] = (float) allBses.get(dId).getLat();
-            vDurations[iE] = 0;
-            vCapacities[iE] = (unassignedBses.size() / allEnumerators.size()) + 1;
-            iE++;
+            enumeratorIds[idx] = dId;
+            enumeratorDepotXs[idx] = (float) allBses.get(dId).getLon();
+            enumeratorDepotYs[idx] = (float) allBses.get(dId).getLat();
+            enumeratorDurations[idx] = 0;
+            enumeratorCapacities[idx] = (unassignedBses.size() / allEnumerators.size()) + 1;
+            idx++;
         }
 
         // Customers
-        int cSize = unassignedBses.size();
-        Long[] cIds = new Long[cSize];
-        float[] cXDepots = new float[cSize];
-        float[] cYDepots = new float[cSize];
-        int[] cDemands = new int[cSize];
+        int bsSize = unassignedBses.size();
+        Long[] bsIds = new Long[bsSize];
+        float[] bsCoordXs = new float[bsSize];
+        float[] bsCoordYs = new float[bsSize];
+        int[] bsDemands = new int[bsSize];
 
-        iE = 0;
-        for(CensusBlock c : unassignedBses.values()) {
-            cIds[iE] = c.getId();
-            cXDepots[iE] = (float) c.getLon();
-            cYDepots[iE] = (float) c.getLat();
-            cDemands[iE] = Integer.valueOf(1);
-            iE++;
+        idx = 0;
+        for(CensusBlock bs : unassignedBses.values()) {
+            bsIds[idx] = bs.getId();
+            bsCoordXs[idx] = (float) bs.getLon();
+            bsCoordYs[idx] = (float) bs.getLat();
+            bsDemands[idx] = 1;
+            idx++;
         }
 
         // Distances
-        float[][] c2cDistances = new float[cSize][cSize];
+        float[][] c2cDistances = new float[bsSize][bsSize];
         for(int x=0; x<c2cDistances.length; x++) {
             for(int y=0; y<c2cDistances[x].length; y++) {
-                if(cIds[x].longValue() != cIds[y].longValue()) {
-                    c2cDistances[x][y] = DURATION_MATRIX.get(cIds[x]).get(cIds[y]).floatValue();
+                if(bsIds[x].longValue() != bsIds[y].longValue()) {
+                    c2cDistances[x][y] = durationMatrix.get(bsIds[x]).get(bsIds[y]).floatValue();
                 } else {
                     c2cDistances[x][y] = Float.MAX_VALUE;
                 }
             }
         }
 
-        float[][] d2cDistances = new float[vSize][cSize];
+        float[][] d2cDistances = new float[enumeratorSize][bsSize];
         for (int x = 0; x < d2cDistances.length; x++) {
             for (int y = 0; y < d2cDistances[x].length; y++) {
-                if (vIds[x].longValue() != cIds[y].longValue()) {
-                    d2cDistances[x][y] = DURATION_MATRIX.get(vIds[x]).get(cIds[y]).floatValue();
+                if (enumeratorIds[x].longValue() != bsIds[y].longValue()) {
+                    d2cDistances[x][y] = durationMatrix.get(enumeratorIds[x]).get(bsIds[y]).floatValue();
                 } else {
                     d2cDistances[x][y] = 0.0f;
                 }
@@ -74,83 +81,81 @@ public abstract class CoESVRPSolver extends AbstractVRPSolver implements Runnabl
         }
 
         // Notify
-        this.onStarted(this.channel, Arrays.asList(vIds), unassignedBses.keySet());
+        this.onStarted(this.channel, Arrays.asList(enumeratorIds), unassignedBses.keySet());
 
         // Solver
         CoESVRPJNI coes = new CoESVRPJNI();
-        coes.setVehicles(vSize, vXDepots, vYDepots, vDurations, vCapacities);
-        coes.setCustomers(cSize, cXDepots, cYDepots, cDemands);
-        coes.setCustomerToCustomerDistance(cSize, cSize, c2cDistances);
-        coes.setDepotToCustomerDistance(vSize, cSize, d2cDistances);
-        coes.configSetNumSubpopulation(1);
+        coes.setVehicles(enumeratorSize, enumeratorDepotXs, enumeratorDepotYs, enumeratorDurations, enumeratorCapacities);
+        coes.setCustomers(bsSize, bsCoordXs, bsCoordYs, bsDemands);
+        coes.setCustomerToCustomerDistance(bsSize, bsSize, c2cDistances);
+        coes.setDepotToCustomerDistance(enumeratorSize, bsSize, d2cDistances);
+        coes.configSetNumSubpopulation(3);
         coes.configStopWhenMaxExecutionTime(60);
         coes.configStopWhenMaxTimeWithoutUpdate(40);
         coes.configStopWhenNumGeneration(100);
         int code = coes.solve();
         if(code == 0) {
-            int[] solDepots = coes.getSolutionDepots();
-            int[] solRoutes = coes.getSolutionRoutes();
-            float[] solCosts = coes.getSolutionCosts();
-            int[] solDemands = coes.getSolutionDemands();
-            int[][] solCustomers = coes.getSolutionCustomers();
+            int[] enumeratorIdxs = coes.getSolutionDepots();
+            int[] routeIdxs = coes.getSolutionRoutes();
+            float[] routeCosts = coes.getSolutionCosts();
+            int[] routeDemands = coes.getSolutionDemands();
+            int[][] destinationBsIdxs = coes.getSolutionCustomers();
 
             try {
-                Map<Long, List<Long>> routes = new HashMap();
-                Map<Long, Integer> demands = new HashMap();
-                Map<Long, Float> costs = new HashMap();
-                for (int i = 0; i < solDepots.length; i++) {
-                    long eId = vIds[solDepots[i]];
+                Map<Long, List<Long>> enumeratorBsIdRoutes = new HashMap();
+                Map<Long, Integer> enumeratorDemands = new HashMap();
+                Map<Long, Float> enumeratorCosts = new HashMap();
+                for (int i = 0; i < enumeratorIdxs.length; i++) {
+                    long eId = enumeratorIds[enumeratorIdxs[i]];
 
-                    if(! routes.keySet().contains(eId)) routes.put(eId, new ArrayList());
-                    if(! demands.keySet().contains(eId)) demands.put(eId, 0);
-                    if(! costs.keySet().contains(eId)) costs.put(eId, 0.0f);
+                    if(! enumeratorBsIdRoutes.keySet().contains(eId)) enumeratorBsIdRoutes.put(eId, new ArrayList());
+                    if(! enumeratorDemands.keySet().contains(eId)) enumeratorDemands.put(eId, 0);
+                    if(! enumeratorCosts.keySet().contains(eId)) enumeratorCosts.put(eId, 0.0f);
 
-                    for (int c : solCustomers[i]) {
+                    for (int bsIdx : destinationBsIdxs[i]) {
                         try {
-                            if (c > 0) routes.get(eId).add(cIds[c - 1]);
-                        } catch (Exception ex) {
-                            ex.printStackTrace();
+                            if (bsIdx > 0) enumeratorBsIdRoutes.get(eId).add(bsIds[bsIdx-1]);
+                        } catch (Exception e) {
+                            LOG.error(e.getMessage(), e);
                         }
                     }
 
-                    demands.put(eId, demands.get(eId) + solDemands[i]);
-                    costs.put(eId, costs.get(eId) + solCosts[i]);
+                    enumeratorDemands.put(eId, enumeratorDemands.get(eId) + routeDemands[i]);
+                    enumeratorCosts.put(eId, enumeratorCosts.get(eId) + routeCosts[i]);
                 }
 
-                //System.out.println(new Gson().toJson(routes));
-                for(long depot : routes.keySet()) {
-                    int dIdx = Arrays.asList(vIds).indexOf(depot);
-                    Long customer = routes.get(depot).get(0);
-                    int cIdx = Arrays.asList(cIds).indexOf(customer);
+                for(long enumeratorId : enumeratorBsIdRoutes.keySet()) {
+                    int enumeratorIdx = Arrays.asList(enumeratorIds).indexOf(enumeratorId);
+                    if(enumeratorBsIdRoutes.get(enumeratorId).size() > 0) {
+                        Long bsId = enumeratorBsIdRoutes.get(enumeratorId).get(0);
+                        int bsIdx = Arrays.asList(bsIds).indexOf(bsId);
 
-                    Map<String, Object> routeVehicleMap = new HashMap();
-                    routeVehicleMap.put("depot", depot);
-                    routeVehicleMap.put("depot-coord", new Double[] {
-                            Double.valueOf(vYDepots[dIdx]),
-                            Double.valueOf(vXDepots[dIdx])});
+                        Point depot = new Point();
+                        depot.id = enumeratorId;
+                        depot.latitude = Double.valueOf(enumeratorDepotYs[enumeratorIdx]);
+                        depot.longitude = Double.valueOf(enumeratorDepotXs[enumeratorIdx]);
 
-                    Map<String, Object> activityMap = new HashMap();
-                    activityMap.put("location", customer);
-                    activityMap.put("location-coord", new Double[] {
-                            Double.valueOf(cYDepots[cIdx]),
-                            Double.valueOf(cXDepots[cIdx])});
+                        Point destination = new Point();
+                        destination.id = bsId;
+                        destination.latitude = Double.valueOf(bsCoordYs[bsIdx]);
+                        destination.longitude = Double.valueOf(bsCoordXs[bsIdx]);
 
-                    double duration = 0.0;
-                    if(DURATION_MATRIX.keySet().contains(depot)) {
-                        if(DURATION_MATRIX.get(depot).keySet().contains(customer)) {
-                            duration = DURATION_MATRIX.get(depot).get(customer);
+                        double duration = 0.0;
+                        if (durationMatrix.keySet().contains(depot)) {
+                            if (durationMatrix.get(depot).keySet().contains(bsId)) {
+                                duration = durationMatrix.get(depot).get(bsId);
+                            }
                         }
+
+                        CensusBlock currBs = allBses.get(bsId);
+                        onSolution(String.valueOf(enumeratorId), depot, destination, duration, currBs.getServiceTime());
                     }
-
-                    CensusBlock currBs = allBses.get(customer);
-
-                    onSolution(String.valueOf(depot), routeVehicleMap, activityMap, duration, currBs.getServiceTime());
                 }
             } catch (Exception e) {
-                e.printStackTrace();
+                LOG.error(e.getMessage(), e);
             }
         }
 
-        onFinished(this.channel, Arrays.asList(vIds), unassignedBses.keySet());
+        onFinished(this.channel, Arrays.asList(enumeratorIds), unassignedBses.keySet());
     }
 }

@@ -1,7 +1,8 @@
 package com.soedomoto.vrp.solver;
 
+import com.soedomoto.vrp.model.solution.Point;
+
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -9,6 +10,6 @@ import java.util.Set;
  */
 public interface VRPSolver {
     public void onStarted(String channel, List<Long> depots, Set<Long> locations);
-    public void onSolution(String channel, Map<String, Object> routeVehicle, Map<String, Object> activity, double duration, double serviceTime);
+    public void onSolution(String channel, Point depot, Point destination, double duration, double serviceTime);
     public void onFinished(String channel, List<Long> depots, Set<Long> locations);
 }

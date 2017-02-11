@@ -17,10 +17,12 @@ import com.graphhopper.jsprit.core.problem.vehicle.VehicleTypeImpl;
 import com.graphhopper.jsprit.core.util.Coordinate;
 import com.graphhopper.jsprit.core.util.VehicleRoutingTransportCostsMatrix;
 import com.soedomoto.vrp.App;
-import com.soedomoto.vrp.model.CensusBlock;
-import com.soedomoto.vrp.model.Enumerator;
+import com.soedomoto.vrp.model.dao.CensusBlock;
+import com.soedomoto.vrp.model.dao.Enumerator;
+import com.soedomoto.vrp.model.solution.Point;
 import org.apache.log4j.Logger;
 
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.util.*;
 
@@ -30,11 +32,13 @@ import java.util.*;
 public abstract class JSpritVRPSolver extends AbstractVRPSolver implements Runnable, VRPSolver {
     private static final Logger LOG = Logger.getLogger(JSpritVRPSolver.class.getName());
 
-    public JSpritVRPSolver(App app, String channel) throws SQLException {
-        super(app, channel);
+    public JSpritVRPSolver(App app, String channel, String brokerUrl) throws SQLException, URISyntaxException {
+        super(app, channel, brokerUrl);
     }
 
     public void run() {
+        super.run();
+
         // Define problem
         VehicleRoutingProblem.Builder vrpBuilder = VehicleRoutingProblem.Builder.newInstance().setFleetSize(VehicleRoutingProblem.FleetSize.FINITE);
 
@@ -88,10 +92,10 @@ public abstract class JSpritVRPSolver extends AbstractVRPSolver implements Runna
         VehicleRoutingTransportCostsMatrix.Builder costMatrixBuilder = VehicleRoutingTransportCostsMatrix.Builder
                 .newInstance(true);
 
-        for(Long a : DURATION_MATRIX.keySet()) {
-            for(Long b : DURATION_MATRIX.get(a).keySet()) {
-                costMatrixBuilder.addTransportDistance(String.valueOf(a), String.valueOf(b), DISTANCE_MATRIX.get(a).get(b));
-                costMatrixBuilder.addTransportTime(String.valueOf(a), String.valueOf(b), DURATION_MATRIX.get(a).get(b));
+        for(Long a : durationMatrix.keySet()) {
+            for(Long b : durationMatrix.get(a).keySet()) {
+                costMatrixBuilder.addTransportDistance(String.valueOf(a), String.valueOf(b), distanceMatrix.get(a).get(b));
+                costMatrixBuilder.addTransportTime(String.valueOf(a), String.valueOf(b), durationMatrix.get(a).get(b));
             }
         }
 
@@ -132,27 +136,25 @@ public abstract class JSpritVRPSolver extends AbstractVRPSolver implements Runna
                     double duration = 0.0;
                     long a = Long.parseLong(routeVehicle.getStartLocation().getId());
                     long b = Long.parseLong(activity.getLocation().getId());
-                    if(DURATION_MATRIX.keySet().contains(a)) {
-                        if(DURATION_MATRIX.get(a).keySet().contains(b)) {
-                            duration = DURATION_MATRIX.get(a).get(b);
+                    if(durationMatrix.keySet().contains(a)) {
+                        if(durationMatrix.get(a).keySet().contains(b)) {
+                            duration = durationMatrix.get(a).get(b);
                         }
                     }
 
                     CensusBlock currBs = allBses.get(Long.valueOf(activity.getLocation().getId()));
 
-                    Map<String, Object> routeVehicleMap = new HashMap();
-                    routeVehicleMap.put("depot", routeVehicle.getStartLocation().getId());
-                    routeVehicleMap.put("depot-coord", new Double[] {
-                            routeVehicle.getStartLocation().getCoordinate().getY(),
-                            routeVehicle.getStartLocation().getCoordinate().getX()});
+                    Point depot = new Point();
+                    depot.id = Long.valueOf(routeVehicle.getStartLocation().getId());
+                    depot.latitude = routeVehicle.getStartLocation().getCoordinate().getY();
+                    depot.longitude = routeVehicle.getStartLocation().getCoordinate().getX();
 
-                    Map<String, Object> activityMap = new HashMap();
-                    activityMap.put("location", activity.getLocation().getId());
-                    activityMap.put("location-coord", new Double[] {
-                            activity.getLocation().getCoordinate().getY(),
-                            activity.getLocation().getCoordinate().getX()});
+                    Point destination = new Point();
+                    destination.id = Long.valueOf(activity.getLocation().getId());
+                    destination.latitude = activity.getLocation().getCoordinate().getY();
+                    destination.longitude = activity.getLocation().getCoordinate().getX();
 
-                    onSolution(routeVehicle.getStartLocation().getId(), routeVehicleMap, activityMap, duration, currBs.getServiceTime());
+                    onSolution(routeVehicle.getStartLocation().getId(), depot, destination, duration, currBs.getServiceTime());
                 }
             }
 
@@ -176,9 +178,9 @@ public abstract class JSpritVRPSolver extends AbstractVRPSolver implements Runna
 
                     long a = Long.parseLong(depot.getId());
                     long b = Long.parseLong(firstAct.getLocation().getId());
-                    if(DURATION_MATRIX.keySet().contains(a)) {
-                        if(DURATION_MATRIX.get(a).keySet().contains(b)) {
-                            duration += DURATION_MATRIX.get(a).get(b);
+                    if(durationMatrix.keySet().contains(a)) {
+                        if(durationMatrix.get(a).keySet().contains(b)) {
+                            duration += durationMatrix.get(a).get(b);
                         }
                     }
                 }

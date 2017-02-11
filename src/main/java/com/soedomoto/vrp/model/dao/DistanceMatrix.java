@@ -1,4 +1,4 @@
-package com.soedomoto.vrp.model;
+package com.soedomoto.vrp.model.dao;
 
 import com.j256.ormlite.field.DatabaseField;
 import com.j256.ormlite.table.DatabaseTable;
@@ -9,29 +9,29 @@ import com.j256.ormlite.table.DatabaseTable;
 @DatabaseTable
 public class DistanceMatrix {
     @DatabaseField(columnName = "location_a")
-    private long locationA;
+    private long from;
     @DatabaseField(columnName = "location_b")
-    private long locationB;
+    private long to;
     @DatabaseField
     private double distance;
     @DatabaseField
     private double duration;
 
 
-    public long getLocationA() {
-        return locationA;
+    public long getFrom() {
+        return from;
     }
 
-    public void setLocationA(long locationA) {
-        this.locationA = locationA;
+    public void setFrom(long from) {
+        this.from = from;
     }
 
-    public long getLocationB() {
-        return locationB;
+    public long getTo() {
+        return to;
     }
 
-    public void setLocationB(long locationB) {
-        this.locationB = locationB;
+    public void setTo(long to) {
+        this.to = to;
     }
 
     public double getDistance() {

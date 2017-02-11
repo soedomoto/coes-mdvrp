@@ -5,10 +5,10 @@ import com.j256.ormlite.dao.DaoManager;
 import com.j256.ormlite.jdbc.JdbcConnectionSource;
 import com.j256.ormlite.support.ConnectionSource;
 import com.j256.ormlite.table.TableUtils;
-import com.soedomoto.vrp.model.CensusBlock;
-import com.soedomoto.vrp.model.DistanceMatrix;
-import com.soedomoto.vrp.model.Enumerator;
-import com.soedomoto.vrp.model.Subscriber;
+import com.soedomoto.vrp.model.dao.CensusBlock;
+import com.soedomoto.vrp.model.dao.DistanceMatrix;
+import com.soedomoto.vrp.model.dao.Enumerator;
+import com.soedomoto.vrp.model.dao.Subscriber;
 import com.soedomoto.vrp.pubsub.ChannelSubscriber;
 import com.soedomoto.vrp.pubsub.DataCache;
 import com.soedomoto.vrp.pubsub.VRPWorker;
@@ -20,6 +20,7 @@ import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by soedomoto on 19/01/17.
@@ -61,7 +62,8 @@ public class App {
             TableUtils.createTableIfNotExists(connectionSource, Subscriber.class);
 
             // Cache important data
-            new DataCache(App.this, BROKER_URL).create();
+            CountDownLatch dataCacheLock = new CountDownLatch(1);
+            new DataCache(App.this, BROKER_URL, dataCacheLock).create();
 
             // Create client logger
             String clientLogDir = BASE_DIR + File.separator + "client_log";
@@ -69,13 +71,15 @@ public class App {
             subs.clientLogger(clientLogDir);
             subs.visit();
 
-            // Depot watcher
-            // new DepotWatcher(App.this, BROKER_URL).watch("depot.*");
+            // Point watcher
+            dataCacheLock.await();
             new VRPWorker(App.this, BROKER_URL).start();
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
         } catch (URISyntaxException e) {
-            e.printStackTrace();
+            LOG.error(e.getMessage(), e);
+        } catch (InterruptedException e) {
+            LOG.error(e.getMessage(), e);
         }
     }
 
