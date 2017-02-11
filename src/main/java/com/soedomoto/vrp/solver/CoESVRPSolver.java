@@ -3,6 +3,7 @@ package com.soedomoto.vrp.solver;
 import com.soedomoto.vrp.App;
 import com.soedomoto.vrp.model.dao.CensusBlock;
 import com.soedomoto.vrp.model.solution.Point;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
 import java.net.URISyntaxException;
@@ -81,6 +82,8 @@ public abstract class CoESVRPSolver extends AbstractVRPSolver implements Runnabl
         }
 
         // Notify
+//        this.exportProblem(enumeratorSize, enumeratorDepotXs, enumeratorDepotYs, enumeratorDurations, enumeratorCapacities,
+//                bsSize, bsCoordXs, bsCoordYs, bsDemands, c2cDistances, d2cDistances);
         this.onStarted(this.channel, Arrays.asList(enumeratorIds), unassignedBses.keySet());
 
         // Solver
@@ -157,5 +160,41 @@ public abstract class CoESVRPSolver extends AbstractVRPSolver implements Runnabl
         }
 
         onFinished(this.channel, Arrays.asList(enumeratorIds), unassignedBses.keySet());
+    }
+
+    private void exportProblem(int enumeratorSize, float[] enumeratorDepotXs, float[] enumeratorDepotYs,
+                               float[] enumeratorDurations, int[] enumeratorCapacities, int bsSize, float[] bsCoordXs,
+                               float[] bsCoordYs, int[] bsDemands, float[][] c2cDistances, float[][] d2cDistances) {
+        List<String> lstStrProblems = new ArrayList<String>();
+        lstStrProblems.add(StringUtils.join(new String[] {String.valueOf(2), String.valueOf(enumeratorSize), String.valueOf(bsSize), String.valueOf(enumeratorSize)}, " "));
+        for(int e=0; e<enumeratorSize; e++) {
+            lstStrProblems.add(StringUtils.join(new String[] {String.valueOf(enumeratorDurations[e]), String.valueOf(enumeratorCapacities[e])}, " "));
+        }
+        int s=1;
+        for(int b=0; b<bsSize; b++) {
+            lstStrProblems.add(StringUtils.join(new String[] {String.valueOf(s), String.valueOf(bsCoordXs[b]), String.valueOf(bsCoordYs[b]), String.valueOf(0), String.valueOf(bsDemands[b]), "1 4 1 2 4 8"}, " "));
+            s++;
+        }
+        for(int e=0; e<enumeratorSize; e++) {
+            lstStrProblems.add(StringUtils.join(new String[] {String.valueOf(s), String.valueOf(enumeratorDepotXs[e]), String.valueOf(enumeratorDepotYs[e]), "0 0 0 0"}, " "));
+            s++;
+        }
+        for(int b=0; b<bsSize; b++) {
+            String[] cd = new String[bsSize];
+            for(int c=0; c<bsSize; c++) {
+                cd[c] = String.valueOf(c2cDistances[b][c]);
+            }
+            lstStrProblems.add(StringUtils.join(cd, " "));
+        }
+        for(int e=0; e<enumeratorSize; e++) {
+            String[] cd = new String[bsSize];
+            for(int c=0; c<bsSize; c++) {
+                cd[c] = String.valueOf(d2cDistances[e][c]);
+            }
+            lstStrProblems.add(StringUtils.join(cd, " "));
+        }
+
+        String strProblem = StringUtils.join(lstStrProblems, "\n");
+        System.out.println(strProblem);
     }
 }
