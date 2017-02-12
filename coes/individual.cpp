@@ -330,7 +330,7 @@ Individual Individual::evolve() {
     Individual offspring = this->copy();
 
     if (this->getGene().size() == 0) {
-        printf("Subpop = %d => Ind vazio!\n", this->getDepot());
+        // printf("Subpop = %d => Ind vazio!\n", this->getDepot());
         Individual offspring = Individual(this->getProblem(), this->getConfig(), this->getDepot(), this->getId());
         offspring.create();
     }
@@ -352,18 +352,18 @@ Individual Individual::evolve() {
         offspring.localSearch();
         offspring.routesToGenes();
 
-        if (offspring.getGene().size() == 0) {
-
-            cout << "Mutate = " << mutate << endl;
-
-            this->print();
-            this->print(true);
-            this->printSolution();
-
-            offspring.print();
-            offspring.print(true);
-            offspring.printSolution();
-        }
+//        if (offspring.getGene().size() == 0) {
+//
+//            cout << "Mutate = " << mutate << endl;
+//
+//            this->print();
+//            this->print(true);
+//            this->printSolution();
+//
+//            offspring.print();
+//            offspring.print(true);
+//            offspring.printSolution();
+//        }
 
     }
 
@@ -390,7 +390,8 @@ void Individual::mutate() {
     try {
         for (int i = 0; i < this->getNumOperations(); ++i) {
             Random::randTwoNumbers(0, this->getGene().size() - 1, x, y);
-            swap(this->getGene().at(x), this->getGene().at(y));
+            if(x < this->getGene().size() && y < this->getGene().size())
+                swap(this->getGene().at(x), this->getGene().at(y));
         }
     }
     catch (exception &e) {
@@ -480,13 +481,14 @@ float Individual::getTotalCost() {
     float cost = 0.0;
 
     for_each(this->getRoutes().begin(), this->getRoutes().end(), [&cost](Route &route) {
-        cost += route.getTotalCost();
+        float rCost = route.getTotalCost();
+        cost += rCost;
     });
 
     cost += this->getPenaltyVehicles();
 
-    if (cost <= 0)
-        cost = FLT_MAX;
+//    if (cost <= 0)
+//        cost = FLT_MAX;
 
     return cost;
 }

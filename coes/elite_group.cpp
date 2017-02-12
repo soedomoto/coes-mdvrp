@@ -151,8 +151,10 @@ void EliteGroup::localSearch() {
 
         if (!this->getProblem()->getMonitor().isTerminated()) {
             eliteIndividual.localSearch();
+            float iCost = eliteIndividual.getTotalCost();
+            float bCost = this->getBest().getTotalCost();
 
-            if (eliteIndividual.getTotalCost() != this->getBest().getTotalCost()) {
+            if (iCost != bCost) {
 
                 PathRelinking path = PathRelinking(this->getProblem(), this->getConfig());
                 path.operate(eliteIndividual, this->getBest());
@@ -160,10 +162,15 @@ void EliteGroup::localSearch() {
             }
 
             eliteIndividual.localSearch(true);
+            iCost = eliteIndividual.getTotalCost();
+            bCost = this->getBest().getTotalCost();
 
-            if (Util::isBetterSolution(eliteIndividual.getTotalCost(), this->getBest().getTotalCost())) {
+            if (Util::isBetterSolution(iCost, bCost)) {
+                this->setBest(eliteIndividual);
+            } else if(this->getBest().getIndividuals().size() == 0 && eliteIndividual.getIndividuals().size() > 0) {
                 this->setBest(eliteIndividual);
             }
+
         }
 
     });

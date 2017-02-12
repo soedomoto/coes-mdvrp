@@ -65,7 +65,8 @@ void PathRelinking::operate(IndividualsGroup &initialSolution, IndividualsGroup 
 
     IndividualsGroup newSolution;
 
-    while (iteration < this->getDifference().size() && !this->getProblem()->getMonitor().isTerminated()) {
+    while (iteration < this->getDifference().size()) {
+        if(this->getProblem()->getMonitor().isTerminated()) break;
 
         int customer = this->getDifference().at(c.at(iteration));
 
@@ -86,16 +87,16 @@ void PathRelinking::operate(IndividualsGroup &initialSolution, IndividualsGroup 
 
         int route = -10;
 
-        if (pg.getRoute() >= initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().size())
+        if (pg.getRoute() >= initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().size() && pg.getRoute() != 0)
             route = initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().size() - 1;
         else
             route = pg.getRoute();
 
         try {
-
-            if (initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().at(route).getDemand()
-                + this->getProblem()->getDemand().at(customer) <=
-                this->getProblem()->getCapacities().at(pg.getDepot())) {
+            if (initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().at(route).getDemand() +
+                        this->getProblem()->getDemand().at(customer) <= this->getProblem()->getCapacities().at(pg.getDepot()) &&
+                    (initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().size() != 0 &&
+                            route < initialSolution.getIndividuals().at(pg.getDepot()).getRoutes().size())) {
 
                 newSolution = initialSolution;
 
@@ -116,16 +117,13 @@ void PathRelinking::operate(IndividualsGroup &initialSolution, IndividualsGroup 
                     initialSolution = newSolution;
                 }
             }
-
-        }
-        catch (exception &e) {
-
-            pi.print();
-            pg.print();
-
-            cout << "It: " << iteration << "\tRoute: " << route << "\t"
-                 << "S: " << initialSolution.getIndividuals().at(pi.getDepot()).getRoutes().size() << "\t"
-                 << e.what() << endl << endl;
+        } catch (exception &e) {
+//            pi.print();
+//            pg.print();
+//
+//            cout << "It: " << iteration << "\tRoute: " << route << "\t"
+//                 << "S: " << initialSolution.getIndividuals().at(pi.getDepot()).getRoutes().size() << "\t"
+//                 << e.what() << endl << endl;
         }
 
         iteration++;

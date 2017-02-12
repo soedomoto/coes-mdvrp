@@ -6,7 +6,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread -fPIC")
 #include_directories("/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/lib_coes/coes")
 #link_directories("/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/lib_coes/cmake-build-debug/")
 
-include_directories(coes jni solver)
+include_directories(coes jni cli)
 
 find_package(JNI)
 message("JNI includes: " ${JNI_INCLUDE_DIRS})
@@ -14,10 +14,8 @@ include_directories(${JNI_INCLUDE_DIRS})
 
 # Build our library
 set(SOURCE_FILES
-        solver/main.cpp
-        solver/optparse.h
-        solver/solver.cpp
-        solver/solver.h
+        cli/main.cpp
+        cli/optparse.h
         jni/com_soedomoto_vrp_solver_CoESVRPJNI.h
         jni/com_soedomoto_vrp_solver_CoESVRPJNI.cpp
         coes/algorithm_config.cpp

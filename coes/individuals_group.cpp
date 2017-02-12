@@ -298,10 +298,14 @@ float IndividualsGroup::getTotalCost() {
     float cost = 0;
 
     for_each(this->getIndividuals().begin(), this->getIndividuals().end(), [&cost](Individual &individual) {
-        cost += individual.getTotalCost();
+        float iCost = individual.getTotalCost();
+        cost += iCost;
     });
 
     cost += this->getIncompleteSolutionPenalty();
+    if(cost > FLT_MAX)
+        cost = FLT_MAX;
+
     return cost;
 
 }

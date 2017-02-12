@@ -220,9 +220,11 @@ int Random::randIntBetween(int x0, int x1) {
 
     // http://stackoverflow.com/questions/4413170/c-generating-a-truly-random-number-between-10-20
 
+//    if(x0 == 0) return 0;
+
     if (x0 > x1) {
-        Util::error("randIntBetween: x0 > x1 ", -1);
-        cout << "x0: " << x0 << "\tx1: " << x1 << "\n";
+//        Util::error("randIntBetween: x0 > x1 ", -1);
+//        cout << "x0: " << x0 << "\tx1: " << x1 << "\n";
         return -1;
     }
 
@@ -251,7 +253,7 @@ void Random::randTwoNumbers(int min, int max, int &n1, int &n2) {
     int x = randIntBetween(min, max);
     int y = x;
 
-    while (y == x && x != 0 && y != 0) {
+    while (y == x && x >= 0 && y >= 0 && min >= 0 && max > 0) {
         y = randIntBetween(min, max);
     }
 
