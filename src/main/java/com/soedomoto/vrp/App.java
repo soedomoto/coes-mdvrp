@@ -28,6 +28,7 @@ import java.util.concurrent.CountDownLatch;
 public class App {
     private final static Logger LOG = Logger.getLogger(App.class.getName());
 
+    private String coesBin;
     private Dao<Enumerator, Long> enumeratorDao;
     private Dao<CensusBlock, Long> censusBlockDao;
     private Dao<DistanceMatrix, Long> distanceMatrixDao;
@@ -39,10 +40,11 @@ public class App {
         File outDir = new File(cmd.getOptionValue("O"));
         if(! outDir.isAbsolute()) outDir = new File(System.getProperty("user.dir"), cmd.getOptionValue("O"));
 
-        String now = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX").format(new Date());
+        String now = new SimpleDateFormat("yyyy-MM-dd'T'HH-mm-ssX").format(new Date());
         if(cmd.hasOption("t")) outDir = new File(outDir, now);
 
         if(cmd.hasOption("I")) maxIteration = Integer.parseInt(cmd.getOptionValue("I"));
+        if(cmd.hasOption("bin")) coesBin = cmd.getOptionValue("bin");
 
         final String BASE_DIR = outDir.getAbsolutePath();
         final String JDBC_URL = cmd.getOptionValue("db");
@@ -73,7 +75,7 @@ public class App {
 
             // Point watcher
             dataCacheLock.await();
-            new VRPWorker(App.this, BROKER_URL).start();
+            new VRPWorker(App.this, BROKER_URL, BASE_DIR).start();
         } catch (SQLException e) {
             LOG.error(e.getMessage(), e);
         } catch (URISyntaxException e) {
@@ -85,6 +87,10 @@ public class App {
 
     public static void main(String[] args) {
         Options options = new Options();
+
+        Option binOpt = new Option("bin", "coes-bin", true, "Binary of CoES library");
+        binOpt.setRequired(true);
+        options.addOption(binOpt);
 
         Option dbOpt = new Option("db", "jdbc-url", true, "JDBC URL of database");
         dbOpt.setRequired(true);
@@ -174,5 +180,13 @@ public class App {
 
     public void setSubscriberDao(Dao<Subscriber, Long> subscriberDao) {
         this.subscriberDao = subscriberDao;
+    }
+
+    public String getCoesBin() {
+        return coesBin;
+    }
+
+    public void setCoesBin(String coesBin) {
+        this.coesBin = coesBin;
     }
 }

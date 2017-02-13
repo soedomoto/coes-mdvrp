@@ -12,10 +12,7 @@ import redis.clients.jedis.Jedis;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -32,13 +29,20 @@ public class VRPWorker implements Runnable {
 
     private final String depotPrefix = "depot.";
     private final Jedis cache;
+    private final Jedis channelReader;
+    private final Jedis channelPublisher;
+    private final String baseDir;
+
     private Map<String, Future<?>> channelSolverThreads = new LinkedHashMap();
     private Map<String, Visit> finishedChannelSolutions = new LinkedHashMap();
 
-    public VRPWorker(App app, String brokerUrl) throws URISyntaxException {
+    public VRPWorker(App app, String brokerUrl, String baseDir) throws URISyntaxException {
         this.app = app;
         this.brokerUrl = brokerUrl;
         this.cache = new Jedis(new URI(brokerUrl));
+        this.channelReader = new Jedis(new URI(brokerUrl));
+        this.channelPublisher = new Jedis(new URI(brokerUrl));
+        this.baseDir = baseDir;
     }
 
     public void start() {
@@ -46,55 +50,51 @@ public class VRPWorker implements Runnable {
     }
 
     public void run() {
-        try {
-            final Jedis channelReader = new Jedis(new URI(brokerUrl));
-            final Jedis channelPublisher = new Jedis(new URI(brokerUrl));
+        Executors.newFixedThreadPool(1).execute(new Runnable() {
+            public void run() {
+                while (true) {
+                    try {
+                        List<String> depotChannels = channelReader.pubsubChannels(String.format("%s*", depotPrefix));
 
-            Executors.newFixedThreadPool(1).execute(new Runnable() {
-                public void run() {
-                    while (true) {
-                        try {
-                            List<String> depotChannels = channelReader.pubsubChannels(String.format("%s*", depotPrefix));
+                        boolean hasNew = false;
+                        for(String depotChannel : depotChannels) {
+                            String channel = depotChannel.replace(depotPrefix, "");
 
-                            boolean hasNew = false;
-                            for(String depotChannel : depotChannels) {
-                                String channel = depotChannel.replace(depotPrefix, "");
-
-                                Visit last = finishedChannelSolutions.get(channel);
-                                if(last != null && last.from.id.longValue() == last.to.id.longValue()) {
-                                    channelSolverThreads.remove(channel);
-                                }
-
-                                if(!channelSolverThreads.containsKey(channel)) {
-                                    Future<?> thread = executor.submit(createSolver(channel, channelPublisher));
-                                    channelSolverThreads.put(channel, thread);
-                                    hasNew = true;
-                                }
+                            Visit last = finishedChannelSolutions.get(channel);
+                            if(last != null && last.from.id.longValue() == last.to.id.longValue()) {
+                                channelSolverThreads.remove(channel);
                             }
 
-                            if(depotChannels.size() == 0 || !hasNew) Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            LOG.error(e.getMessage(), e);
-                        } catch (SQLException e) {
-                            LOG.error(e.getMessage(), e);
-                        } catch (URISyntaxException e) {
-                            LOG.error(e.getMessage(), e);
+                            if(!channelSolverThreads.containsKey(channel)) {
+                                Future<?> thread = executor.submit(createSolver(channel, channelPublisher, true));
+                                channelSolverThreads.put(channel, thread);
+                                hasNew = true;
+                            }
                         }
+
+                        if(depotChannels.size() == 0 || !hasNew) Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        LOG.error(e.getMessage(), e);
+                    } catch (SQLException e) {
+                        LOG.error(e.getMessage(), e);
+                    } catch (URISyntaxException e) {
+                        LOG.error(e.getMessage(), e);
                     }
                 }
-            });
-        } catch (URISyntaxException e) {
-            LOG.error(e.getMessage(), e);
-        }
+            }
+        });
     }
 
-    private AbstractVRPSolver createSolver(final String currentCh, final Jedis chPublisher) throws SQLException, URISyntaxException {
-        return new CoESVRPSolver(app, currentCh, brokerUrl) {
-            public void onStarted(String channel, List<Long> depots, Set<Long> locations) {
-                LOG.debug(String.format("Start solving channel %s", channel));
+    private AbstractVRPSolver createSolver(final String currentCh, final Jedis chPublisher, boolean useAllEnumerator) throws SQLException, URISyntaxException {
+        return new CoESVRPSolver(app, currentCh, channelSolverThreads.keySet(), brokerUrl, baseDir, useAllEnumerator) {
+            private Set<String> solvedChannels;
+
+            public void onStarted(String currChannel, List<Long> depots, Set<Long> locations) {
+                LOG.debug(String.format("Start solving channel %s", currChannel));
+                solvedChannels = new TreeSet();
             }
 
-            public void onSolution(String channel, Point depot, Point destination, double duration, double serviceTime) {
+            public void onSolution(String currChannel, String channel, Point depot, Point destination, double duration, double serviceTime) {
                 Visit visit = new Visit();
                 visit.from = depot;
                 visit.to = destination;
@@ -116,22 +116,27 @@ public class VRPWorker implements Runnable {
                 synchronized(finishedChannelSolutions) {
                     if(receivers > 0) {
                         finishedChannelSolutions.put(channel, visit);
-                        cache.set(String.format("location.%s.assign-date", visit.to.id), String.valueOf(System.currentTimeMillis()));
+                        solvedChannels.add(channel);
 
-//                        try {
-//                            CensusBlock bs = app.getCensusBlockDao().queryForId(visit.to.id);
-//                            bs.setAssignedTo((long) 1000);
-//                            bs.setAssignDate(new Date());
-//                            app.getCensusBlockDao().update(bs);
-//                        } catch (SQLException e) {
-//                            e.printStackTrace();
-//                        }
+                        cache.set(String.format("location.%s.assign-date", visit.to.id), String.valueOf(System.currentTimeMillis()));
                     }
                 }
             }
 
-            public void onFinished(String channel, List<Long> depots, Set<Long> locations) {
-                LOG.debug(String.format("Finish solving channel %s", channel));
+            public void onFinished(String currChannel, List<Long> depots, Set<Long> locations) {
+                LOG.debug(String.format("Finish solving channel %s", currChannel));
+
+                if(! solvedChannels.contains(currChannel)) {
+                    try {
+                        channelSolverThreads.remove(currChannel);
+                        Future<?> thread = executor.submit(createSolver(currChannel, channelPublisher, false));
+                        channelSolverThreads.put(currChannel, thread);
+                    } catch (SQLException e) {
+                        LOG.error(e.getMessage(), e);
+                    } catch (URISyntaxException e) {
+                        LOG.error(e.getMessage(), e);
+                    }
+                }
             }
         };
     }

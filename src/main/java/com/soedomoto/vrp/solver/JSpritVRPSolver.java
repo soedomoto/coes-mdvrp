@@ -154,7 +154,7 @@ public abstract class JSpritVRPSolver extends AbstractVRPSolver implements Runna
                     destination.latitude = activity.getLocation().getCoordinate().getY();
                     destination.longitude = activity.getLocation().getCoordinate().getX();
 
-                    onSolution(routeVehicle.getStartLocation().getId(), depot, destination, duration, currBs.getServiceTime());
+                    onSolution(this.channel, routeVehicle.getStartLocation().getId(), depot, destination, duration, currBs.getServiceTime());
                 }
             }
 

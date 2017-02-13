@@ -10,9 +10,7 @@ import redis.clients.jedis.Jedis;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Created by soedomoto on 03/02/17.
@@ -25,9 +23,15 @@ public abstract class AbstractVRPSolver implements VRPSolver, Runnable {
 
     protected final App app;
     protected final String channel;
-    private final Jedis cache;
+    protected String baseDir;
+    protected boolean useAllEnumerator = true;
+    protected Set<String> otherChannels = new HashSet<String>();
+    protected final Jedis cache;
 
     protected Map<Long, Enumerator> allEnumerators = new LinkedHashMap();
+    protected Map<Long, Enumerator> subscribingEnumerators = new LinkedHashMap();
+    protected Map<Long, Enumerator> selfEnumerator = new LinkedHashMap();
+    protected Map<Long, Enumerator> enumerators = new LinkedHashMap();
     protected Map<Long, CensusBlock> allBses = new LinkedHashMap();
     protected Map<Long, CensusBlock> unassignedBses = new LinkedHashMap();
 
@@ -35,6 +39,21 @@ public abstract class AbstractVRPSolver implements VRPSolver, Runnable {
         this.app = app;
         this.channel = channel;
         this.cache = new Jedis(new URI(brokerUrl));
+    }
+
+    public AbstractVRPSolver(App app, String channel, Set<String> otherChannels, String brokerUrl) throws SQLException, URISyntaxException {
+        this(app, channel, brokerUrl);
+        this.otherChannels = otherChannels;
+    }
+
+    public AbstractVRPSolver(App app, String channel, Set<String> otherChannels, String brokerUrl, boolean useAllEnumerator) throws SQLException, URISyntaxException {
+        this(app, channel, otherChannels, brokerUrl);
+        this.useAllEnumerator = useAllEnumerator;
+    }
+
+    public AbstractVRPSolver(App app, String channel, Set<String> otherChannels, String brokerUrl, String baseDir, boolean useAllEnumerator) throws SQLException, URISyntaxException {
+        this(app, channel, otherChannels, brokerUrl, useAllEnumerator);
+        this.baseDir = baseDir;
     }
 
     public void run() {
@@ -45,6 +64,12 @@ public abstract class AbstractVRPSolver implements VRPSolver, Runnable {
                 if(dId != null && dId.length() != 0) e.setDepot(Long.parseLong(dId));
 
                 allEnumerators.put(e.getId(), e);
+                if(Long.parseLong(channel) == e.getDepot()) {
+                    selfEnumerator.put(e.getId(), e);
+                }
+                if(Long.parseLong(channel) == e.getDepot() || otherChannels.contains(String.valueOf(e.getDepot()))) {
+                    subscribingEnumerators.put(e.getId(), e);
+                }
             }
 
             for (CensusBlock bs : app.getCensusBlockDao().queryForAll()) {
