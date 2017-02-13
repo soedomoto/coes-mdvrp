@@ -1,12 +1,15 @@
 #include <cstdlib>
 #include <vector>
 #include <iostream>
-#include <mdvrp_es_coevol.hpp>
+#include <individuals_group.hpp>
+#include <elite_group.hpp>
+#include <community.hpp>
+#include <fstream>
 #include "optparse.h"
 
 using namespace std;
 
-void solve(MDVRPProblem *problem, AlgorithmConfig *config) {
+IndividualsGroup & solve(MDVRPProblem *problem, AlgorithmConfig *config) {
     time_t start, end;
 
     printf("=======================================================================================\n");
@@ -56,8 +59,26 @@ void solve(MDVRPProblem *problem, AlgorithmConfig *config) {
     printf("Local Search.: %s\n", config->getLocalSearchType() == RANDOM ? "BLA" : "BLS");
     cout << "\n\n";
 
-    ESCoevolMDVRP esCoevolMDVRP = ESCoevolMDVRP(problem, config);
-    esCoevolMDVRP.run();
+    // Instantiate variables
+    time(&start);
+    problem->getMonitor().setStart(start);
+    EliteGroup *eliteGroup = new EliteGroup(problem, config);
+    problem->getMonitor().createLocks(problem->getDepots(), config->getNumSubIndDepots());
+    Community *community = new Community(problem, config, eliteGroup);
+    community->pairingRandomly();
+    community->evaluateSubpops(true);
+    community->pairingAllVsBest();
+    community->evaluateSubpops(true);
+
+    community->printEvolution();
+    community->getProblem()->getMonitor().updateGeneration();
+
+    // Search solution
+    try {
+        community->manager();
+    } catch (exception &e) {
+        cout << e.what();
+    }
 
     time(&end);
 
@@ -66,8 +87,79 @@ void solve(MDVRPProblem *problem, AlgorithmConfig *config) {
     printf("Encerramento: ");
     Util::printTimeNow();
 
-    delete problem;
-    delete config;
+    // Solutions
+    int numRoutes = 0;
+    IndividualsGroup &best = community->getEliteGroup()->getBest();
+    best.printSolution();
+
+    delete community;
+    
+    return best;
+}
+
+void saveOutput(const char *out, IndividualsGroup &best) {
+    vector<string> depots = vector<string>(0);
+    vector<string> routes = vector<string>(0);
+    vector<string> costs = vector<string>(0);
+    vector<string> demands = vector<string>(0);
+    vector<vector<string>> customers = vector<vector<string>>(0);
+
+    for_each(best.getIndividuals().begin(), best.getIndividuals().end(), [&depots, &routes, &costs, &demands, &customers](Individual &individual) {
+        individual.updateRoutesID();
+        for_each(individual.getRoutes().begin(), individual.getRoutes().end(), [&depots, &routes, &costs, &demands, &customers](Route &route) {
+            depots.push_back(std::to_string(route.getDepot()));
+            routes.push_back(std::to_string(route.getId()));
+            costs.push_back(std::to_string(route.getTotalCost()));
+            demands.push_back(std::to_string(route.getDemand()));
+
+            vector<string> vcustomers;
+            for_each(route.getTour().begin(), route.getTour().end(), [&vcustomers](int customer) {
+                vcustomers.push_back(std::to_string(customer));
+            });
+            customers.push_back(vcustomers);
+        });
+    });
+
+    vector<string> lines = vector<string>(0);
+    ostringstream odepots;
+    ostringstream oroutes;
+    ostringstream ocosts;
+    ostringstream odemands;
+    ostringstream ocustomers;
+    for(int i=0; i<depots.size(); i++) {
+        odepots << depots.at(i);
+        oroutes << routes.at(i);
+        ocosts << costs.at(i);
+        odemands << demands.at(i);
+
+        ostringstream o;
+        for(int c=0; c<customers.at(i).size(); c++) {
+            o << customers.at(i).at(c);
+            if(c != customers.at(i).size()-1) o << ",";
+        }
+        ocustomers << o.str();
+
+        if(i != depots.size()-1) {
+            odepots << "\t";
+            oroutes << "\t";
+            ocosts << "\t";
+            odemands << "\t";
+            ocustomers << "\t";
+        }
+    }
+
+    lines.push_back(odepots.str());
+    lines.push_back(oroutes.str());
+    lines.push_back(ocosts.str());
+    lines.push_back(odemands.str());
+    lines.push_back(ocustomers.str());
+
+    string strOut = string(out);
+    ofstream outSolution(strOut, ios::out | ofstream::binary);
+    ostream_iterator<string> outStream(outSolution, "\n");
+    copy(lines.begin(), lines.end(), outStream);
+    outSolution.flush();
+    outSolution.close();
 }
 
 int main(int argc, char const *const *argv) {
@@ -108,7 +200,7 @@ int main(int argc, char const *const *argv) {
     const optparse::Values &options = parser.parse_args(argc, argv);
     const std::vector<std::string> args = parser.args();
 
-    if (args.size() != 2) {
+    if (args.size() != 3) {
         parser.print_help();
         return EXIT_FAILURE;
     }
@@ -155,6 +247,11 @@ int main(int argc, char const *const *argv) {
 //    config->setLocalSearchType(Enum_Local_Search_Type::RANDOM);
 
     config->setParameters(problem);
-    solve(problem, config);
+    IndividualsGroup &best = solve(problem, config);
+
+    saveOutput(args[2].c_str(), best);
+
+    delete problem;
+    delete config;
 }
 

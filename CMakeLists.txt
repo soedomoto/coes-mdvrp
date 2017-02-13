@@ -26,8 +26,6 @@ set(SOURCE_FILES
         coes/customer_position.hpp
         coes/elite_group.cpp
         coes/elite_group.hpp
-        coes/mdvrp_es_coevol.cpp
-        coes/mdvrp_es_coevol.hpp
         coes/individual.cpp
         coes/individual.hpp
         coes/individuals_group.cpp
@@ -58,4 +56,4 @@ set(SOURCE_FILES
 add_library(jni_coes_mdvrp SHARED ${SOURCE_FILES})
 set_target_properties(jni_coes_mdvrp PROPERTIES PREFIX "lib")
 
-add_executable(jni_coes_mdvrp_bin ${SOURCE_FILES})
+add_executable(coes_mdvrp_bin ${SOURCE_FILES})
