@@ -1,8 +1,0 @@
-{
-  "name": "rt-vrp-client",
-  "version": "0.1.0",
-  "main": "index.js",
-  "dependencies": {
-    "redis": "^2.6.5"
-  }
-}
