@@ -4,8 +4,6 @@ import os
 from datetime import datetime
 from optparse import OptionParser
 
-import sys
-
 from .cache import DataCache
 from .model import Enumerator, CensusBlock, CostMatrix
 from .tool import random_service_time, CountDownLatch
@@ -25,9 +23,11 @@ class Producer(object):
         BROKER_URL = options['B']
         DATA_PATH = options['D']
 
-        OUT_DIR = options['O']
-        if not os.path.isabs((OUT_DIR)): OUT_DIR = os.path.join(os.getcwd(), OUT_DIR)
-        if options['t']: OUT_DIR = os.path.join(OUT_DIR, datetime.now().isoformat())
+        if options['O']: OUT_DIR = options['O']
+        else: OUT_DIR = os.getcwd()
+
+        if not os.path.isabs((OUT_DIR)): OUT_DIR = os.path.abspath(os.path.join(os.getcwd(), OUT_DIR))
+        if options['t']: OUT_DIR = os.path.join(OUT_DIR, datetime.now().replace(microsecond=0).isoformat())
 
         self.read_file(DATA_PATH)
 

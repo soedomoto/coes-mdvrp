@@ -130,7 +130,7 @@ class CoESVRPSolver(Thread):
             except: pass
 
             self.create_problem_file(problem_file, initial_cost_file)
-            retval = subprocess.check_call([self.app.coes_bin, "--depot-subpop-ind", "3", "--max-exec-time", "5",
+            retval = subprocess.check_call([self.app.coes_bin, "--depot-subpop-ind", "3", "--max-exec-time", "60",
                                             "--max-time-no-update", "40", problem_file, initial_cost_file, solution_file])
             if retval == 0:
                 lines = []
