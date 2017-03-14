@@ -2,6 +2,8 @@ import os
 import subprocess
 from multiprocessing import Process
 
+import time
+
 
 class Producer(Process):
     def __init__(self):
@@ -33,6 +35,7 @@ class Consumer(Process):
 
 def main():
     Producer().start()
+    time.sleep(10)
     Consumer().start()
 
 if __name__ == '__main__':
