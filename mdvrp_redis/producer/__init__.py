@@ -20,24 +20,46 @@ class Producer(object):
         if not os.path.isabs(self.coes_bin): self.coes_bin = os.path.abspath(self.coes_bin)
 
         self.broker_url = options['B']
-        BROKER_URL = options['B']
+        self.out_dir = os.getcwd()
+        if options['O']:
+            self.out_dir = options['O']
+        if not os.path.isabs(self.out_dir):
+            self.out_dir = os.path.abspath(self.out_dir)
+        if options['t']:
+            self.out_dir = os.path.join(self.out_dir, datetime.now().replace(microsecond=0).isoformat())
+
         DATA_PATH = options['D']
-
-        if options['O']: OUT_DIR = options['O']
-        else: OUT_DIR = os.getcwd()
-
-        if not os.path.isabs((OUT_DIR)): OUT_DIR = os.path.abspath(os.path.join(os.getcwd(), OUT_DIR))
-        if options['t']: OUT_DIR = os.path.join(OUT_DIR, datetime.now().replace(microsecond=0).isoformat())
-
-        self.read_file(DATA_PATH)
+        COST_PATH = options['C']
+        if COST_PATH:
+            self.read_file(DATA_PATH, COST_PATH)
+        else:
+            self.read_file(DATA_PATH)
 
         latch = CountDownLatch()
-        DataCache(self, BROKER_URL, latch).start()
+        DataCache(self, latch).start()
 
         latch.await()
-        VRPWorker(self, OUT_DIR).start()
+        VRPWorker(self).start()
 
-    def read_file(self, path):
+    def read_file(self, path, cost_path=None):
+        cost_matrix = {}
+        if cost_path:
+            for line in open(cost_path).readlines():
+                a, b, c, d = line.strip().split()
+                cost_matrix.setdefault(a, {})
+                cost_matrix[a][b] = {
+                    'distance': float(c),
+                    'duration': float(d)
+                }
+
+        def distance_duration(t, f):
+            if t.id in cost_matrix and f.id in cost_matrix[t.id]:
+                return cost_matrix[t.id][f.id]['distance'], cost_matrix[t.id][f.id]['duration']
+
+            return math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2)), \
+                   math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+
+
         lines = open(path).readlines()
 
         _dcv = lines[0].strip().split()
@@ -80,11 +102,12 @@ class Producer(object):
                 cm.fromm = f.id
                 cm.to = t.id
                 if f.id != t.id:
-                    cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    # cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    # cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    cm.distance, cm.duration = distance_duration(f, t)
                 else:
-                    cm.distance = 3.4028235E38
-                    cm.duration = 3.4028235E38
+                    cm.distance = float(0)
+                    cm.duration = float(0)
                 self.distance_matrix.setdefault(f.id, {})
                 self.distance_matrix[f.id][t.id] = json.loads(str(cm))
 
@@ -94,8 +117,9 @@ class Producer(object):
                 cm.fromm = f.id
                 cm.to = t.id
                 if f.id != t.id:
-                    cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    # cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    # cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    cm.distance, cm.duration = distance_duration(f, t)
                 else:
                     cm.distance = float(0)
                     cm.duration = float(0)
@@ -108,8 +132,9 @@ class Producer(object):
                 cm.fromm = f.id
                 cm.to = t.id
                 if f.id != t.id:
-                    cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    # cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    # cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
+                    cm.distance, cm.duration = distance_duration(f, t)
                 else:
                     cm.distance = float(0)
                     cm.duration = float(0)
@@ -130,6 +155,9 @@ def main():
     parser.add_option("-D", "--data",
                       dest="D", default=None,
                       help="JDBC URL of database / File")
+    parser.add_option("-C", "--cost-file",
+                      dest="C", default=None,
+                      help="Cost matrix File")
     parser.add_option("-O", "--output-dir",
                       dest="O", default="None",
                       help='Output directory')

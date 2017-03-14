@@ -5,11 +5,11 @@ from redis import Redis
 
 
 class DataCache(Thread):
-    def __init__(self, app, broker_url, latch):
+    def __init__(self, app, latch):
         Thread.__init__(self)
 
         self.app = app
-        self.redis = Redis(broker_url)
+        self.redis = Redis(app.broker_url)
         self.latch = latch
 
     def cache_location(self, initial=False):

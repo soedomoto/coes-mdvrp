@@ -76,7 +76,7 @@ class Enumerator(Thread):
                     self.redis.set('{}.assigned'.format(tobe_visited['id']), True)
 
                     try:
-                        duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) / 100
+                        duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) * 10 / 1000
                         self.logger.debug('{}-{} duration {} seconds'.format(self.props['depot'], tobe_visited['id'], duration))
                         time.sleep(duration)
                     except Exception, e:
@@ -88,7 +88,7 @@ class Enumerator(Thread):
                     self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
                     self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
 
-                    service_time = self.locations[tobe_visited['id']]['service_time'] / 1000
+                    service_time = self.locations[tobe_visited['id']]['service_time'] * 10 / 1000
                     self.logger.debug('{} seconds'.format(service_time))
                     time.sleep(service_time)
 

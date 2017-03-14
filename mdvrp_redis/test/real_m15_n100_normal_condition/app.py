@@ -1,5 +1,6 @@
 import os
 import subprocess
+
 import time
 from threading import Thread
 
@@ -12,8 +13,9 @@ class Producer(Thread):
         retval = subprocess.check_call(
             ['../../bin/mdvrp-redis-producer',
              '-b', '/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/jni-coes-mdvrp/coes_mdvrp_bin',
-             '-B', '172.17.0.3',
-             '-D', os.path.abspath(os.path.join(os.getcwd(), './cordeau_p01')),
+             '-B', '172.17.0.4',
+             '-D', os.path.abspath(os.path.join(os.getcwd(), './m15_n182')),
+             '-C', os.path.abspath(os.path.join(os.getcwd(), './distance_duration_table')),
              '-O', os.path.abspath(os.path.join(os.getcwd(), './producer'))
              ])
         print 'Producer retval {}'.format(retval)
@@ -26,7 +28,7 @@ class Consumer(Thread):
     def run(self):
         retval = subprocess.check_call(
             ['../../bin/mdvrp-redis-consumer',
-             '-B', '172.17.0.3',
+             '-B', '172.17.0.4',
              '-O', os.path.abspath(os.path.join(os.getcwd(), './consumer'))
              ])
         print 'Consumer retval {}'.format(retval)

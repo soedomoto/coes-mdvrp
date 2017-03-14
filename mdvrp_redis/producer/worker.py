@@ -11,6 +11,24 @@ from redis import Redis
 from .model import ResultEnumerator
 
 
+class MyOrderedDict(OrderedDict):
+    def prepend(self, key, value, dict_setitem=dict.__setitem__):
+        root = self._OrderedDict__root
+        first = root[1]
+
+        if key in self:
+            link = self._OrderedDict__map[key]
+            link_prev, link_next, _ = link
+            link_prev[1] = link_next
+            link_next[0] = link_prev
+            link[0] = root
+            link[1] = first
+            root[1] = first[0] = link
+        else:
+            root[1] = first[0] = self._OrderedDict__map[key] = [root, first, key]
+            dict_setitem(self, key, value)
+
+
 class Listener():
     def on_started(self, vehicle):
         pass
@@ -27,7 +45,6 @@ class Listener():
 
 class CoESListener(Listener):
     is_solved = False
-    # solved = set()
 
     def __init__(self, worker):
         self.worker = worker
@@ -47,17 +64,9 @@ class CoESListener(Listener):
         if not self.is_solved and self.vehicle == vehicle:
             self.is_solved = True
 
-        # self.solved.add(vehicle)
-
     def on_finished(self, vehicle, depot):
         if not self.is_solved:
-            # self.solved.remove(vehicle)
-            # self.thread_queue.put((vehicle, None, self.worker.outdir, True))
-
-            self.worker.queueue[depot] = (vehicle, depot, self.worker.outdir, True)
-
-        # for s in self.solved:
-        #     self.worker.solved.put(s)
+            self.worker.queueue.prepend(depot, (vehicle, depot, self.worker.out_dir, False))
 
     def on_eof(self, vehicle):
         self.worker.redis.rpush('{}.next-routes'.format(vehicle), 'EOF')
@@ -66,17 +75,14 @@ class CoESListener(Listener):
 
 class VRPWorker(Thread):
     is_eof = False
-    thread_queue = Queue()
-    solved = Queue()
+    queueue = MyOrderedDict()
 
-    queueue = OrderedDict()
-
-    def __init__(self, app, outdir):
+    def __init__(self, app):
         Thread.__init__(self)
 
         self.app = app
         self.redis = Redis(app.broker_url)
-        self.outdir = outdir
+        self.out_dir = self.app.out_dir
 
     def watch_channel(self):
         while True:
@@ -86,9 +92,7 @@ class VRPWorker(Thread):
             vehicle, depot = json.loads(message)
             vehicle, depot = str(vehicle), str(depot)
 
-            # self.thread_queue.put((vehicle, depot, self.outdir, True))
-
-            self.queueue[depot] = (vehicle, depot, self.outdir, True)
+            self.queueue[depot] = (vehicle, depot, self.app.out_dir, True)
 
     def run(self):
         Thread(target=self.watch_channel).start()
@@ -106,24 +110,6 @@ class VRPWorker(Thread):
 
             else:
                 time.sleep(10)
-
-        # solved = set()
-        # while True:
-        #     for _ in range(self.solved.qsize()):
-        #         solved.add(self.solved.get())
-        #
-        #     vehicle, depot, outdir, use_all_vehicle = self.thread_queue.get()
-        #
-        #     if vehicle in solved:
-        #         solved.remove(vehicle)
-        #         continue
-        #
-        #     if self.redis.llen('{}.next-routes'.format(vehicle)) != 0:
-        #         continue
-        #
-        #     sol = CoESVRPSolver(self.app, vehicle, depot, outdir, CoESListener(self))
-        #     sol.start()
-        #     sol.join()
 
 
 class CoESVRPSolver(Thread):
@@ -175,7 +161,7 @@ class CoESVRPSolver(Thread):
 
         if len(self.locations) > 0:
             ts = '{}'.format(int(time.time() * 1000))
-            problem_file = os.path.join(self.outdir, ts, 'problem')
+            problem_file = os.path.join(self.outdir, ts, 'm15_n182')
             initial_cost_file = os.path.join(self.outdir, ts, 'initial-cost')
             solution_file = os.path.join(self.outdir, ts, 'solution')
             routes_file = os.path.join(self.outdir, ts, 'routes')
@@ -250,7 +236,10 @@ class CoESVRPSolver(Thread):
         for a in self.locations:
             durations = []
             for b in self.locations:
-                durations.append(str(self.app.distance_matrix[a][b]['duration']))
+                if a == b:
+                    durations.append(str(3.4028235E38))
+                else:
+                    durations.append(str(self.app.distance_matrix[a][b]['duration']))
             lines.append(' '.join(durations))
             l += 1
 
