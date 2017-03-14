@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 from optparse import OptionParser
 
-from .cache import DataCache
 from .model import Enumerator, CensusBlock, CostMatrix
+from .cache import DataCache
 from .tool import random_service_time, CountDownLatch
 from .worker import VRPWorker
 

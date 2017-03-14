@@ -146,6 +146,10 @@ class CoESVRPSolver(Thread):
 
             self.listener.on_finished(self.vehicle)
 
+        else:
+            for v in all_vehicles:
+                self.worker.redis.rpush('{}.next-routes'.format(v), 'EOF')
+
     def translate_solution(self, solution_file):
         lines = open(solution_file).readlines()
 

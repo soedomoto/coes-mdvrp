@@ -63,32 +63,36 @@ class Enumerator(Thread):
 
             # Wait for any message
             channel, routes = self.redis.blpop('{}.next-routes'.format(self.props['id']))
-            routes = json.loads(routes)
+            if not routes.upper() == 'EOF':
+                routes = json.loads(routes)
 
-            # Set 1st route as assigned
-            tobe_visited = routes[0]
-            if str(self.props['depot']) != tobe_visited['id']:
-                self.redis.set('{}.assigned'.format(tobe_visited['id']), True)
+                # Set 1st route as assigned
+                tobe_visited = routes[0]
+                if str(self.props['depot']) != tobe_visited['id']:
+                    self.redis.set('{}.assigned'.format(tobe_visited['id']), True)
 
-                try:
-                    duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) / 100
-                    self.logger.debug('{}-{} duration {} seconds'.format(self.props['depot'], tobe_visited['id'], duration))
-                    time.sleep(duration)
-                except Exception, e:
-                    pass
+                    try:
+                        duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) / 100
+                        self.logger.debug('{}-{} duration {} seconds'.format(self.props['depot'], tobe_visited['id'], duration))
+                        time.sleep(duration)
+                    except Exception, e:
+                        pass
 
-                self.logger.debug('{} visit {}'.format(self.props['id'], tobe_visited))
+                    self.logger.debug('{} visit {}'.format(self.props['id'], tobe_visited))
 
-                self.props['depot'] = tobe_visited['id']
-                self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
-                self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
+                    self.props['depot'] = tobe_visited['id']
+                    self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
+                    self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
 
-                service_time = self.locations[tobe_visited['id']]['service_time'] / 1000
-                self.logger.debug('{} seconds'.format(service_time))
-                time.sleep(service_time)
+                    service_time = self.locations[tobe_visited['id']]['service_time'] / 1000
+                    self.logger.debug('{} seconds'.format(service_time))
+                    time.sleep(service_time)
+
+            else:
+                break
 
 
-if __name__ == '__main__':
+def main():
     parser = OptionParser()
     parser.set_description('Run location recommendation server')
     parser.set_usage(parser.get_usage().replace('\n', ''))
@@ -115,3 +119,7 @@ if __name__ == '__main__':
 
     for en in ens: en.start()
     for en in ens: en.join()
+
+
+if __name__ == '__main__':
+    main()
