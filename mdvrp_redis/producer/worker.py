@@ -11,6 +11,7 @@ from .model import ResultEnumerator
 
 
 class VRPWorker(Thread):
+    is_eof = False
     result_cache = {}
 
     def __init__(self, app, outdir):
@@ -21,7 +22,7 @@ class VRPWorker(Thread):
         self.outdir = outdir
 
     def watch_channel(self):
-        while True:
+        while not self.is_eof:
             _, message = self.redis.blpop('request')
             vehicle, depot = json.loads(message)
             vehicle, depot = str(vehicle), str(depot)
@@ -53,6 +54,10 @@ class VRPWorker(Thread):
                         sol.start()
                         sol.join()
 
+                def on_eof(self, vehicle):
+                    self.worker.redis.rpush('{}.next-routes'.format(vehicle), 'EOF')
+                    self.worker.is_eof = True
+
             sol = CoESVRPSolver(self.app, vehicle, depot, self.outdir, Listener(self))
             sol.start()
             sol.join()
@@ -69,6 +74,9 @@ class CoESVRPSolverListener():
         pass
 
     def on_finished(self, vehicle):
+        pass
+
+    def on_eof(self, vehicle):
         pass
 
 
@@ -148,7 +156,7 @@ class CoESVRPSolver(Thread):
 
         else:
             for v in all_vehicles:
-                self.worker.redis.rpush('{}.next-routes'.format(v), 'EOF')
+                self.listener.on_eof(v)
 
     def translate_solution(self, solution_file):
         lines = open(solution_file).readlines()
