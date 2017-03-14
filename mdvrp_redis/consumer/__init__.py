@@ -12,13 +12,15 @@ formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
 
 
 class Enumerator(Thread):
-    def __init__(self, en, broker_url, out_dir):
+    def __init__(self, en, broker_url, out_dir, use_timestamp=False):
         Thread.__init__(self)
         self.props = en
         self.redis = Redis(broker_url)
+        self.out_dir = os.path.abspath(out_dir)
 
-        now = datetime.now().replace(microsecond=0).isoformat()
-        self.out_dir = os.path.join(os.path.abspath(out_dir), now)
+        if use_timestamp:
+            now = datetime.now().replace(microsecond=0).isoformat()
+            self.out_dir = os.path.join(self.out_dir, now)
 
         try:
             os.makedirs(self.out_dir)
@@ -99,6 +101,9 @@ def main():
     parser.add_option("-O", "--output-dir",
                       dest="O", default="None",
                       help='Output directory')
+    parser.add_option("-t", "--use-timestamp",
+                      action="store_true", dest="t", default=False,
+                      help='Append timestamp to output directory')
     parser.add_option("-B", "--broker-url",
                       dest="B", default=None,
                       help='Redis broker URL')
@@ -108,13 +113,14 @@ def main():
 
     out_dir = options['O']
     broker_url = options['B']
+    use_timestamp = options['t']
 
     redis = Redis(broker_url)
     enumerators = redis.get('enumerators')
 
     ens = []
     for _, en in json.loads(enumerators).items():
-        en = Enumerator(en, broker_url, out_dir)
+        en = Enumerator(en, broker_url, out_dir, use_timestamp)
         ens.append(en)
 
     for en in ens: en.start()
