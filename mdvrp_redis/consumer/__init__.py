@@ -60,6 +60,8 @@ class Enumerator(Thread):
 
         while True:
             # Subscribe
+            self.logger.debug('subscribe')
+
             if self.redis.llen('{}.next-routes'.format(self.props['id'])) == 0:
                 self.redis.rpush('request', json.dumps((self.props['id'], self.props['depot'])))
 

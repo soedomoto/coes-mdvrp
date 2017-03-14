@@ -3,11 +3,12 @@ import subprocess
 from multiprocessing import Process
 
 import time
+from threading import Thread
 
 
-class Producer(Process):
+class Producer(Thread):
     def __init__(self):
-        Process.__init__(self)
+        Thread.__init__(self)
 
     def run(self):
         retval = subprocess.check_call(
@@ -20,9 +21,9 @@ class Producer(Process):
         print 'Producer retval {}'.format(retval)
 
 
-class Consumer(Process):
+class Consumer(Thread):
     def __init__(self):
-        Process.__init__(self)
+        Thread.__init__(self)
 
     def run(self):
         retval = subprocess.check_call(

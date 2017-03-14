@@ -5,14 +5,71 @@ import time
 from collections import OrderedDict
 from threading import Thread
 
+from multiprocessing import Queue
 from redis import Redis
 
 from .model import ResultEnumerator
 
 
+class Listener():
+    def on_started(self, vehicle):
+        pass
+
+    def on_solution(self, vehicle, depot, routes):
+        pass
+
+    def on_finished(self, vehicle, depot):
+        pass
+
+    def on_eof(self, vehicle):
+        pass
+
+
+class CoESListener(Listener):
+    is_solved = False
+    # solved = set()
+
+    def __init__(self, worker):
+        self.worker = worker
+
+    def on_started(self, vehicle):
+        self.vehicle = vehicle
+
+    def on_solution(self, vehicle, depot, routes):
+        if self.worker.redis.llen('{}.next-routes'.format(vehicle)) == 0:
+            for i in range(len(routes)): routes[i] = routes[i].clone()
+            self.worker.redis.rpush('{}.next-routes'.format(vehicle), routes)
+
+            try:
+                self.worker.queueue.pop(depot)
+            except: pass
+
+        if not self.is_solved and self.vehicle == vehicle:
+            self.is_solved = True
+
+        # self.solved.add(vehicle)
+
+    def on_finished(self, vehicle, depot):
+        if not self.is_solved:
+            # self.solved.remove(vehicle)
+            # self.thread_queue.put((vehicle, None, self.worker.outdir, True))
+
+            self.worker.queueue[depot] = (vehicle, depot, self.worker.outdir, True)
+
+        # for s in self.solved:
+        #     self.worker.solved.put(s)
+
+    def on_eof(self, vehicle):
+        self.worker.redis.rpush('{}.next-routes'.format(vehicle), 'EOF')
+        self.worker.is_eof = self.worker.is_eof or True
+
+
 class VRPWorker(Thread):
     is_eof = False
-    result_cache = {}
+    thread_queue = Queue()
+    solved = Queue()
+
+    queueue = OrderedDict()
 
     def __init__(self, app, outdir):
         Thread.__init__(self)
@@ -22,62 +79,51 @@ class VRPWorker(Thread):
         self.outdir = outdir
 
     def watch_channel(self):
-        while not self.is_eof:
+        while True:
+            if self.is_eof: break
+
             _, message = self.redis.blpop('request')
             vehicle, depot = json.loads(message)
             vehicle, depot = str(vehicle), str(depot)
 
-            if self.redis.llen('{}.next-routes'.format(vehicle)) != 0:
-                continue
+            # self.thread_queue.put((vehicle, depot, self.outdir, True))
 
-            class Listener(CoESVRPSolverListener):
-                is_solved = False
-
-                def __init__(self, worker):
-                    self.worker = worker
-
-                def on_started(self, vehicle):
-                    self.vehicle = vehicle
-
-                def on_solution(self, vehicle, routes):
-                    if self.worker.redis.llen('{}.next-routes'.format(vehicle)) == 0:
-                        for i in range(len(routes)): routes[i] = routes[i].clone()
-                        self.worker.redis.rpush('{}.next-routes'.format(vehicle), routes)
-
-                    if not self.is_solved and self.vehicle == vehicle:
-                        self.is_solved = True
-
-                def on_finished(self, vehicle):
-                    if not self.is_solved:
-                        sol = CoESVRPSolver(self.worker.app, vehicle, depot, self.worker.outdir, Listener(self.worker),
-                                            use_all_vehicle=False)
-                        sol.start()
-                        sol.join()
-
-                def on_eof(self, vehicle):
-                    self.worker.redis.rpush('{}.next-routes'.format(vehicle), 'EOF')
-                    self.worker.is_eof = True
-
-            sol = CoESVRPSolver(self.app, vehicle, depot, self.outdir, Listener(self))
-            sol.start()
-            sol.join()
+            self.queueue[depot] = (vehicle, depot, self.outdir, True)
 
     def run(self):
-        self.watch_channel()
+        Thread(target=self.watch_channel).start()
 
+        while True:
+            depots = self.queueue.keys()
+            if len(depots) > 0:
+                try:
+                    vehicle, depot, outdir, use_all_vehicle = self.queueue.pop(depots[0])
 
-class CoESVRPSolverListener():
-    def on_started(self, vehicle):
-        pass
+                    sol = CoESVRPSolver(self.app, vehicle, depot, outdir, CoESListener(self))
+                    sol.start()
+                    sol.join()
+                except: pass
 
-    def on_solution(self, vehicle, routes):
-        pass
+            else:
+                time.sleep(10)
 
-    def on_finished(self, vehicle):
-        pass
-
-    def on_eof(self, vehicle):
-        pass
+        # solved = set()
+        # while True:
+        #     for _ in range(self.solved.qsize()):
+        #         solved.add(self.solved.get())
+        #
+        #     vehicle, depot, outdir, use_all_vehicle = self.thread_queue.get()
+        #
+        #     if vehicle in solved:
+        #         solved.remove(vehicle)
+        #         continue
+        #
+        #     if self.redis.llen('{}.next-routes'.format(vehicle)) != 0:
+        #         continue
+        #
+        #     sol = CoESVRPSolver(self.app, vehicle, depot, outdir, CoESListener(self))
+        #     sol.start()
+        #     sol.join()
 
 
 class CoESVRPSolver(Thread):
@@ -145,14 +191,14 @@ class CoESVRPSolver(Thread):
                 result_enumerators = self.translate_solution(solution_file)
                 for en in result_enumerators:
                     if len(en.routes) > 0:
-                        self.listener.on_solution(en.id, en.routes)
+                        self.listener.on_solution(en.id, self.depot, en.routes)
                         lines.append('{}\t{}'.format(en.id, ','.join([r.id for r in en.routes])))
 
                 # Backup to file
                 with open(routes_file, 'wb') as f:
                     f.write('\n'.join(lines))
 
-            self.listener.on_finished(self.vehicle)
+            self.listener.on_finished(self.vehicle, self.depot)
 
         else:
             for v in all_vehicles:
