@@ -72,7 +72,7 @@ class Enumerator(Thread):
 
                 # Set 1st route as assigned
                 tobe_visited = routes[0]
-                if str(self.props['depot']) != tobe_visited['id']:
+                if str(self.props['depot']) != tobe_visited['id'] or self.props['id'] == str(self.props['depot']):
                     self.redis.set('{}.assigned'.format(tobe_visited['id']), True)
 
                     try:

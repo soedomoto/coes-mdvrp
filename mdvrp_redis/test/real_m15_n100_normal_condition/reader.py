@@ -3,7 +3,7 @@ import os
 import math
 from redis import Redis
 
-cache = Redis('172.17.0.3')
+cache = Redis('172.17.0.4')
 locations = json.loads(cache.get('locations'))
 distances = json.loads(cache.get('distances'))
 
