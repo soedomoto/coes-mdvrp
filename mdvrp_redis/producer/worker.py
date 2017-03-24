@@ -5,8 +5,7 @@ import time
 from collections import OrderedDict
 from threading import Thread
 
-from multiprocessing import Queue
-from redis import Redis
+from rediscluster import RedisCluster
 
 from .model import ResultEnumerator
 
@@ -81,7 +80,7 @@ class VRPWorker(Thread):
         Thread.__init__(self)
 
         self.app = app
-        self.redis = Redis(app.broker_url)
+        self.redis = RedisCluster(host=app.broker_url, port=6379)
         self.out_dir = self.app.out_dir
 
     def watch_channel(self):
@@ -89,6 +88,8 @@ class VRPWorker(Thread):
             if self.is_eof: break
 
             _, message = self.redis.blpop('request')
+            self.app.logger.debug('{} received'.format(message))
+
             vehicle, depot = json.loads(message)
             vehicle, depot = str(vehicle), str(depot)
 
@@ -117,7 +118,7 @@ class CoESVRPSolver(Thread):
         Thread.__init__(self)
 
         self.app = app
-        self.redis = Redis(app.broker_url)
+        self.redis = RedisCluster(host=app.broker_url, port=6379)
         self.vehicle = vehicle
         self.depot = depot
         self.outdir = outdir

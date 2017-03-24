@@ -1,14 +1,15 @@
-import json
-import math
+import logging
 import os
-from StringIO import StringIO
 from datetime import datetime
 from optparse import OptionParser
 
-from mdvrp_redis.producer.model import Enumerator, CensusBlock, CostMatrix
 from mdvrp_redis.producer.cache import DataCache
+from mdvrp_redis.producer.model import Enumerator, CensusBlock, CostMatrix
 from mdvrp_redis.producer.tool import random_service_time, CountDownLatch, CordeauFile
 from mdvrp_redis.producer.worker import VRPWorker
+
+
+formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
 
 
 class Producer(object):
@@ -17,6 +18,7 @@ class Producer(object):
     distance_matrix = {}
 
     def __init__(self, options):
+
         self.coes_bin = options['bin']
         if not os.path.isabs(self.coes_bin): self.coes_bin = os.path.abspath(self.coes_bin)
 
@@ -28,6 +30,19 @@ class Producer(object):
             self.out_dir = os.path.abspath(self.out_dir)
         if options['t']:
             self.out_dir = os.path.join(self.out_dir, datetime.now().replace(microsecond=0).isoformat())
+
+        try: os.makedirs(self.out_dir)
+        except: pass
+
+        log_file = os.path.join(self.out_dir, 'app.log')
+        self.logger = logging.getLogger('app')
+        fileHandler = logging.FileHandler(log_file)
+        fileHandler.setFormatter(formatter)
+        self.logger.addHandler(fileHandler)
+        stdoutHandler = logging.StreamHandler()
+        stdoutHandler.setFormatter(formatter)
+        self.logger.addHandler(stdoutHandler)
+        self.logger.setLevel(logging.DEBUG)
 
         DATA_PATH = options['D']
         COST_PATH = options['C']
