@@ -1,13 +1,14 @@
 import json
 import math
 import os
+from StringIO import StringIO
 from datetime import datetime
 from optparse import OptionParser
 
-from .model import Enumerator, CensusBlock, CostMatrix
-from .cache import DataCache
-from .tool import random_service_time, CountDownLatch
-from .worker import VRPWorker
+from mdvrp_redis.producer.model import Enumerator, CensusBlock, CostMatrix
+from mdvrp_redis.producer.cache import DataCache
+from mdvrp_redis.producer.tool import random_service_time, CountDownLatch, CordeauFile
+from mdvrp_redis.producer.worker import VRPWorker
 
 
 class Producer(object):
@@ -31,115 +32,19 @@ class Producer(object):
         DATA_PATH = options['D']
         COST_PATH = options['C']
         if COST_PATH:
-            self.read_file(DATA_PATH, COST_PATH)
+            cf = CordeauFile().read_file(DATA_PATH, COST_PATH)
         else:
-            self.read_file(DATA_PATH)
+            cf = CordeauFile().read_file(DATA_PATH)
+
+        self.all_bses = cf.all_bses
+        self.all_enumerators = cf.all_enumerators
+        self.distance_matrix = cf.distance_matrix
 
         latch = CountDownLatch()
         DataCache(self, latch).start()
 
         latch.await()
         VRPWorker(self).start()
-
-    def read_file(self, path, cost_path=None):
-        cost_matrix = {}
-        if cost_path:
-            for line in open(cost_path).readlines():
-                a, b, c, d = line.strip().split()
-                cost_matrix.setdefault(a, {})
-                cost_matrix[a][b] = {
-                    'distance': float(c),
-                    'duration': float(d)
-                }
-
-        def distance_duration(t, f):
-            if t.id in cost_matrix and f.id in cost_matrix[t.id]:
-                return cost_matrix[t.id][f.id]['distance'], cost_matrix[t.id][f.id]['duration']
-
-            return math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2)), \
-                   math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-
-
-        lines = open(path).readlines()
-
-        _dcv = lines[0].strip().split()
-        nVehicle, nCustomer, nDepot = int(_dcv[1]), int(_dcv[2]), int(_dcv[3])
-
-        l = 1
-        for _ in range(nDepot):
-            d_c = lines[l].strip().split()
-            e = Enumerator()
-            e.duration = float(d_c[0])
-            e.capacity = int(d_c[1])
-            self.all_enumerators.append(e)
-
-            l += 1
-
-        for _ in range(nCustomer):
-            idx_x_y__d = lines[l].strip().split()
-            b = CensusBlock()
-            b.id = idx_x_y__d[0]
-            b.lon = float(idx_x_y__d[1])
-            b.lat = float(idx_x_y__d[2])
-            b.demand = int(idx_x_y__d[4])
-            b.service_time = random_service_time()
-            self.all_bses.append(b)
-
-            l += 1
-
-        for i in range(nDepot):
-            idx_x_y = lines[l].strip().split();
-            self.all_enumerators[i].id = idx_x_y[0]
-            self.all_enumerators[i].depot = long(idx_x_y[0])
-            self.all_enumerators[i].lon = float(idx_x_y[1])
-            self.all_enumerators[i].lat = float(idx_x_y[2])
-
-            l += 1
-
-        for f in self.all_bses:
-            for t in self.all_bses:
-                cm = CostMatrix()
-                cm.fromm = f.id
-                cm.to = t.id
-                if f.id != t.id:
-                    # cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    # cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    cm.distance, cm.duration = distance_duration(f, t)
-                else:
-                    cm.distance = float(0)
-                    cm.duration = float(0)
-                self.distance_matrix.setdefault(f.id, {})
-                self.distance_matrix[f.id][t.id] = json.loads(str(cm))
-
-        for f in self.all_enumerators:
-            for t in self.all_bses:
-                cm = CostMatrix()
-                cm.fromm = f.id
-                cm.to = t.id
-                if f.id != t.id:
-                    # cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    # cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    cm.distance, cm.duration = distance_duration(f, t)
-                else:
-                    cm.distance = float(0)
-                    cm.duration = float(0)
-                self.distance_matrix.setdefault(f.id, {})
-                self.distance_matrix[f.id][t.id] = json.loads(str(cm))
-
-        for f in self.all_bses:
-            for t in self.all_enumerators:
-                cm = CostMatrix()
-                cm.fromm = f.id
-                cm.to = t.id
-                if f.id != t.id:
-                    # cm.distance = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    # cm.duration = math.sqrt(pow(t.lon-f.lon, 2) + pow(t.lat-f.lat, 2))
-                    cm.distance, cm.duration = distance_duration(f, t)
-                else:
-                    cm.distance = float(0)
-                    cm.duration = float(0)
-                self.distance_matrix.setdefault(f.id, {})
-                self.distance_matrix[f.id][t.id] = json.loads(str(cm))
 
     def start(self):
         pass
