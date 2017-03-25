@@ -1,9 +1,9 @@
 import json
 import os
 import math
-from redis import Redis
+from rediscluster import RedisCluster
 
-cache = Redis('172.17.0.3')
+cache = RedisCluster(host='172.17.0.3', port=6379)
 locations = json.loads(cache.get('locations'))
 distances = json.loads(cache.get('distances'))
 
@@ -22,6 +22,7 @@ def stdev(lst):
 def coes():
     root = 'producer'
     log_dirs = os.listdir(root)
+    log_dirs = [d for d in log_dirs if not d.startswith('.')]
     log_dirs = sorted(log_dirs)
     dir = log_dirs[0]
 
