@@ -53,12 +53,13 @@ class CoESListener(Listener):
 
     def on_solution(self, vehicle, depot, routes):
         if self.worker.redis.llen('{}.next-routes'.format(vehicle)) == 0:
-            for i in range(len(routes)): routes[i] = routes[i].clone()
-            self.worker.redis.rpush('{}.next-routes'.format(vehicle), routes)
+            if not self.worker.redis.get('{}.assigned'.format(routes[0].id)):
+                self.worker.redis.set('{}.assigned'.format(routes[0].id), vehicle)
+                self.worker.redis.rpush('{}.next-routes'.format(vehicle), routes)
 
-            try:
-                self.worker.queueue.pop(depot)
-            except: pass
+                try:
+                    self.worker.queueue.pop(depot)
+                except: pass
 
         if not self.is_solved and self.vehicle == vehicle:
             self.is_solved = True
@@ -107,6 +108,8 @@ class VRPWorker(Thread):
                     sol = CoESVRPSolver(self.app, vehicle, depot, outdir, CoESListener(self))
                     sol.start()
                     sol.join()
+
+                    time.sleep(3)
                 except: pass
 
             else:
@@ -171,7 +174,7 @@ class CoESVRPSolver(Thread):
             except: pass
 
             self.create_problem_file(problem_file, initial_cost_file)
-            retval = subprocess.check_call([self.app.coes_bin, "--depot-subpop-ind", "3", "--max-exec-time", "60",
+            retval = subprocess.check_call([self.app.coes_bin, "--depot-subpop-ind", "3", "--max-exec-time", "5",
                                             "--max-time-no-update", "40", problem_file, initial_cost_file, solution_file])
             if retval == 0:
                 lines = []
