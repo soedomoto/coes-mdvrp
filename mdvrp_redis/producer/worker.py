@@ -7,25 +7,8 @@ from threading import Thread
 
 from rediscluster import RedisCluster
 
+from mdvrp_redis.producer.tool import MyOrderedDict
 from .model import ResultEnumerator
-
-
-class MyOrderedDict(OrderedDict):
-    def prepend(self, key, value, dict_setitem=dict.__setitem__):
-        root = self._OrderedDict__root
-        first = root[1]
-
-        if key in self:
-            link = self._OrderedDict__map[key]
-            link_prev, link_next, _ = link
-            link_prev[1] = link_next
-            link_next[0] = link_prev
-            link[0] = root
-            link[1] = first
-            root[1] = first[0] = link
-        else:
-            root[1] = first[0] = self._OrderedDict__map[key] = [root, first, key]
-            dict_setitem(self, key, value)
 
 
 class Listener():
@@ -165,7 +148,7 @@ class CoESVRPSolver(Thread):
 
         if len(self.locations) > 0:
             ts = '{}'.format(int(time.time() * 1000))
-            problem_file = os.path.join(self.outdir, ts, 'm15_n182')
+            problem_file = os.path.join(self.outdir, ts, 'problem')
             initial_cost_file = os.path.join(self.outdir, ts, 'initial-cost')
             solution_file = os.path.join(self.outdir, ts, 'solution')
             routes_file = os.path.join(self.outdir, ts, 'routes')
@@ -174,8 +157,10 @@ class CoESVRPSolver(Thread):
             except: pass
 
             self.create_problem_file(problem_file, initial_cost_file)
-            retval = subprocess.check_call([self.app.coes_bin, "--depot-subpop-ind", "3", "--max-exec-time", "5",
-                                            "--max-time-no-update", "40", problem_file, initial_cost_file, solution_file])
+            retval = subprocess.check_call([self.app.coes_bin, "--depot-subpop-ind", "3", "--max-exec-time",
+                                            str(self.app.execution_time), "--max-time-no-update",
+                                            str(float(3)/4 * self.app.execution_time), problem_file, initial_cost_file,
+                                            solution_file])
             if retval == 0:
                 lines = []
                 result_enumerators = self.translate_solution(solution_file)
@@ -224,7 +209,7 @@ class CoESVRPSolver(Thread):
 
         for i in self.enumerators:
             e = self.enumerators[i]
-            lines.append('{} {}'.format(0.0, int(len(self.locations) / len(self.enumerators)) + 1))
+            lines.append('{} {}'.format(e.duration, int(len(self.locations) / len(self.enumerators)) + 1))
 
         l = 1
         for i in self.locations:

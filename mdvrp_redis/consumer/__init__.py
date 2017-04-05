@@ -11,6 +11,8 @@ from threading import Thread, Lock
 import select
 from rediscluster import RedisCluster
 
+from mdvrp_redis.producer import CordeauFile
+
 formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
 
 
@@ -40,11 +42,12 @@ class ProxyServer(Process):
     input_list = []
     channel = {}
 
-    def __init__(self, (proxy_host, proxy_port), (dest_host, dest_port), logfile=None):
+    def __init__(self, (proxy_host, proxy_port), (dest_host, dest_port), delay_range=(0.0, 1.0), logfile=None):
         Process.__init__(self)
 
         self.dest_host = dest_host
         self.dest_port = dest_port
+        self.delay_range = delay_range
 
         self.logger = logging.getLogger('Proxy-{}:{}-{}:{}'.format(proxy_host, proxy_port, dest_host, dest_port))
         if logfile:
@@ -71,7 +74,7 @@ class ProxyServer(Process):
     def release_lock(self):
         while True:
             if self.lock.locked():
-                self.proxy_delay = random.uniform(0.0, 5.0)  # use random 0-20 seconds
+                self.proxy_delay = random.uniform(*self.delay_range)  # use random 0-20 seconds
                 self.logger.debug('Delay from {} seconds'.format(self.proxy_delay))
 
                 time.sleep(self.proxy_delay)
@@ -152,6 +155,11 @@ class Enumerator(Thread):
     def __init__(self, en, broker_url, out_dir, use_timestamp=False, use_proxy=False, proxy_port=None):
         Thread.__init__(self)
 
+        self.locations = None
+        self.simulation_time_scale = None
+        self.distances = None
+        self.sigma_delay = None
+        self.mu_delay = None
         self.broker_url = broker_url
         self.use_proxy = use_proxy
         self.proxy_port = proxy_port
@@ -166,7 +174,6 @@ class Enumerator(Thread):
         except: pass
 
         log_file = os.path.join(self.out_dir, self.props['id'] + '.log')
-
         self.logger = logging.getLogger(str(self.props['id']))
         fileHandler = logging.FileHandler(log_file)
         fileHandler.setFormatter(formatter)
@@ -175,6 +182,13 @@ class Enumerator(Thread):
         stdoutHandler.setFormatter(formatter)
         self.logger.addHandler(stdoutHandler)
         self.logger.setLevel(logging.DEBUG)
+
+        log_file = os.path.join(self.out_dir, self.props['id'] + '.delay')
+        self.delay_writer = logging.getLogger(str(self.props['id']) + '-delay')
+        fileHandler = logging.FileHandler(log_file)
+        fileHandler.setFormatter(logging.Formatter('%(message)s'))
+        self.delay_writer.addHandler(fileHandler)
+        self.delay_writer.setLevel(logging.DEBUG)
 
     def dump(self, str):
         res_file = os.path.join(self.out_dir, self.props['id'] + '.res')
@@ -190,10 +204,6 @@ class Enumerator(Thread):
         f.close()
 
     def run(self):
-        self.cache = RedisCluster(host=self.broker_url, port=6379, readonly_mode=True)
-        self.distances = json.loads(self.cache.get('distances'))
-        self.locations = json.loads(self.cache.get('locations'))
-
         if self.use_proxy:
             proxy_host = '127.0.0.1'
             proxy_port = self.proxy_port
@@ -226,22 +236,31 @@ class Enumerator(Thread):
                 if str(self.props['depot']) != tobe_visited['id'] or self.props['id'] == str(self.props['depot']):
                     self.redis.set('{}.received'.format(tobe_visited['id']), self.props['id'])
 
+                    # Transportation process
                     try:
-                        duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) * 10 / 1000
-                        self.logger.debug('{}-{} duration {} seconds'.format(self.props['depot'], tobe_visited['id'], duration))
+                        duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) * self.simulation_time_scale
+                        self.logger.debug('transport {}->{} for {} s'.format(self.props['depot'], tobe_visited['id'], duration))
                         time.sleep(duration)
                     except Exception, e:
                         pass
 
-                    self.logger.debug('{} visit {}'.format(self.props['id'], tobe_visited))
+                    self.logger.debug('arrived to {}'.format(tobe_visited['id']))
 
                     self.props['depot'] = tobe_visited['id']
                     self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
                     self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
 
-                    service_time = self.locations[tobe_visited['id']]['service_time'] * 10 / 1000
-                    self.logger.debug('{} seconds'.format(service_time))
+                    # Enumeration process
+                    service_time = self.locations[tobe_visited['id']]['service_time'] * self.simulation_time_scale
+                    self.logger.debug('enumerating {} for {} s'.format(self.props['depot'], service_time))
                     time.sleep(service_time)
+
+                    # Geographical delay
+                    if self.mu_delay:
+                        geo_delay = random.gauss(self.mu_delay, self.sigma_delay) * self.simulation_time_scale
+                        self.logger.debug('geographical delay for {} s'.format(geo_delay))
+                        self.delay_writer.debug('{} {}'.format(self.props['depot'], geo_delay))
+                        time.sleep(geo_delay)
 
             else:
                 break
@@ -249,17 +268,32 @@ class Enumerator(Thread):
 
 def main():
     parser = OptionParser()
-    parser.set_description('Run location recommendation server')
+    parser.set_description('Run consumer simulator')
     parser.set_usage(parser.get_usage().replace('\n', ''))
     parser.add_option("-O", "--output-dir",
                       dest="O", default="None",
                       help='Output directory')
+    parser.add_option("-D", "--data",
+                      dest="D", default=None,
+                      help="Data problem file")
+    parser.add_option("-C", "--cost-file",
+                      dest="C", default=None,
+                      help="Cost matrix file")
+    parser.add_option("-S", "--time-scale",
+                      dest="S", default=float(1)/100, type=float,
+                      help="Scale simulation time to real time")
     parser.add_option("-t", "--use-timestamp",
                       action="store_true", dest="t", default=False,
                       help='Append timestamp to output directory')
     parser.add_option("-p", "--use-proxy",
                       action="store_true", dest="p", default=False,
                       help='Use auto proxy server')
+    parser.add_option("-m", "--mu-delay",
+                      dest="m", default=0.0, type=float,
+                      help='Mu delay')
+    parser.add_option("-s", "--sigma-delay",
+                      dest="s", default=0.0, type=float,
+                      help='Sigma delay')
     parser.add_option("-B", "--broker-url",
                       dest="B", default=[], action="append",
                       help='Redis broker URL(s)')
@@ -267,21 +301,42 @@ def main():
     (options, args) = parser.parse_args()
     options = vars(options)
 
+    if len(args) != 0:
+        parser.print_help()
+        exit()
+
+    if not options['D'] or not options['O'] or not options['B']:
+        parser.print_help()
+        exit()
+
+    problem_file = options['D']
+    cost_file = options['C']
     out_dir = options['O']
     broker_urls = options['B']
     use_timestamp = options['t']
     use_proxy = options['p']
+    simulation_time_scale = options['S']
+    mu_delay = options['m']
+    sigma_delay = options['s']
 
-    redis = RedisCluster(host=broker_urls[random.randint(0, len(broker_urls)-1)], port=6379)
-    enumerators = redis.get('enumerators')
+    cf = CordeauFile().read_file(problem_file, cost_file)
+    enumerators = cf.all_enumerators
+    distances = cf.distance_matrix
+    locations = {l.id: l.__dict__ for l in cf.all_bses}
 
-    proxy_ports = get_open_port(n=len(enumerators))
+    if use_proxy:
+        proxy_ports = get_open_port(n=len(enumerators))
 
     ens = []
     i = 0
-    for _, en in json.loads(enumerators).items():
-        en = Enumerator(en, broker_urls[random.randint(0, len(broker_urls)-1)], out_dir, use_timestamp,
-                        use_proxy, proxy_ports[i])
+    for e in enumerators:
+        en = Enumerator(e.__dict__, broker_urls[random.randint(0, len(broker_urls)-1)], out_dir, use_timestamp,
+                        use_proxy, proxy_ports[i] if use_proxy else None)
+        en.distances = distances
+        en.locations = locations
+        en.simulation_time_scale = simulation_time_scale
+        en.mu_delay = mu_delay
+        en.sigma_delay = sigma_delay
         ens.append(en)
         i += 1
 

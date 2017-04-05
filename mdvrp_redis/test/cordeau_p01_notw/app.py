@@ -9,7 +9,7 @@ from threading import Thread
 
 
 def setup_redis_cluster_docker():
-    cont_names = ['m15_n182_redis_cluster_{}'.format(i) for i in range(1, 7)]
+    cont_names = ['cordeau_p01_notw_redis_cluster_{}'.format(i) for i in range(1, 7)]
     docker_stop = 'docker stop {}'.format(' '.join(cont_names))
     docker_remove = 'docker rm {}'.format(' '.join(cont_names))
     docker_runs = ['docker run -d -P --name {} soedomoto/redis-cluster:latest /redis.conf'.format(n) for n in cont_names]
@@ -61,8 +61,7 @@ class Producer(Thread):
             ['../../bin/mdvrp-redis-producer',
              '-b', '/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/jni-coes-mdvrp/coes_mdvrp_bin',
              '-B', self.brokers[random.randint(0, len(self.brokers)-1)],
-             '-D', os.path.abspath(os.path.join(os.getcwd(), './m15_n182')),
-             '-C', os.path.abspath(os.path.join(os.getcwd(), './distance_duration_table')),
+             '-D', os.path.abspath(os.path.join(os.getcwd(), './p01')),
              '-O', os.path.abspath(os.path.join(os.getcwd(), './producer'))
              ])
         print 'Producer retval {}'.format(retval)

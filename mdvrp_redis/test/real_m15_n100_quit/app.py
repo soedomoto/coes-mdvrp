@@ -9,7 +9,7 @@ from threading import Thread
 
 
 def setup_redis_cluster_docker():
-    cont_names = ['m15_n182_redis_cluster_{}'.format(i) for i in range(1, 7)]
+    cont_names = ['m15_n182_quit_redis_cluster_{}'.format(i) for i in range(1, 7)]
     docker_stop = 'docker stop {}'.format(' '.join(cont_names))
     docker_remove = 'docker rm {}'.format(' '.join(cont_names))
     docker_runs = ['docker run -d -P --name {} soedomoto/redis-cluster:latest /redis.conf'.format(n) for n in cont_names]
@@ -82,7 +82,7 @@ class Consumer(Thread):
              '-B', self.brokers[3],
              '-B', self.brokers[4],
              '-B', self.brokers[5],
-             '-O', os.path.abspath(os.path.join(os.getcwd(), './consumer'))
+             '-O', os.path.abspath(os.path.join(os.getcwd(), './consumer')),
              ])
         print 'Consumer retval {}'.format(retval)
 

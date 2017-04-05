@@ -9,7 +9,7 @@ import numpy
 
 instance = 'm15_n182'
 cost_matrix = 'distance_duration_table'
-base_plot_name='test_result_normal_field_{0}_delay_{1}'
+base_plot_name='test_result_normal_field_{0}_packet_loss_{1}'
 
 
 from mdvrp_redis.producer import CordeauFile

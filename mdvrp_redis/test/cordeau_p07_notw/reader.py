@@ -1,26 +1,32 @@
-import math
+import json
 import os
+import math
 import random
+import subprocess
 from collections import OrderedDict
 
-import matplotlib.pyplot as plt
 import numpy
+from rediscluster import RedisCluster
+import matplotlib.pyplot as plt
 
+instance = 'p07'
+conf = subprocess.check_output('docker inspect cordeau_{0}_notw_redis_cluster_1'.format(instance).split())
+conf = json.loads(conf)[0]
+nx = conf['NetworkSettings']
+redis_host = nx['IPAddress']
 
-instance = 'm15_n182'
-cost_matrix = 'distance_duration_table'
-base_plot_name='test_result_normal_field_{0}_delay_{1}'
-
+cache = RedisCluster(host=redis_host, port=6379)
+distances = json.loads(cache.get('distances'))
 
 from mdvrp_redis.producer import CordeauFile
-cf = CordeauFile().read_file(instance, cost_matrix)
+
+cf = CordeauFile().read_file(instance)
 enumerators = {}
 for e in cf.all_enumerators:
     enumerators[e.id] = e.__dict__
 locations = {}
 for e in cf.all_bses:
     locations[e.id] = e.__dict__
-distances = cf.distance_matrix
 
 
 def stdev(lst):
@@ -32,15 +38,6 @@ def stdev(lst):
     variance = ssd / num_items
     sd = math.sqrt(variance)
     return sd
-
-
-from matplotlib import colors as mcolors
-
-colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
-# Sort colors by hue, saturation, value and name.
-by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
-                for name, color in colors.items())
-color_names = [name for hsv, name in by_hsv]
 
 def plot_coes(verts):
     fig = plt.figure()
@@ -54,9 +51,18 @@ def plot_coes(verts):
 
 
 def plot(verts, name='plot'):
+    from matplotlib import colors as mcolors
+
+    colors = dict(mcolors.TABLEAU_COLORS)
+    if len(verts) > len(colors):
+        colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
+    # Sort colors by hue, saturation, value and name.
+    by_hsv = sorted((tuple(mcolors.rgb_to_hsv(mcolors.to_rgba(color)[:3])), name)
+                    for name, color in colors.items())
+    color_names = [n for hsv, n in by_hsv]
+
     import networkx as nx
     G = nx.DiGraph()
-    plt.figure(figsize=(10, 14))
 
     all_ns = {}
     depots = []
@@ -77,7 +83,11 @@ def plot(verts, name='plot'):
         for i in range(2, len(ns.keys())):
             v_edges[v].append((ns.keys()[i - 1], ns.keys()[i]))
 
-    colors = random.sample(color_names, len(v_edges))
+    colors = []
+    for i in range(0, len(v_edges)):
+        i = i * len(color_names)/len(v_edges)
+        colors.append(color_names[i])
+
     nx.draw_networkx_nodes(G, all_ns, nodelist=depots, node_color='r', node_size=500, alpha=0.8, node_shape='s',
                            label='Enumerator')
     nx.draw_networkx_nodes(G, all_ns, nodelist=[c for customers in v_customers.values() for c in customers],
@@ -91,7 +101,7 @@ def plot(verts, name='plot'):
 
     plt.xlabel('Longitude')
     plt.ylabel('Latitude')
-    lgd = plt.legend(loc='lower left', bbox_to_anchor=(0., 1.02, 1., .102), ncol=4, mode="expand")
+    lgd = plt.legend(loc='upper left', bbox_to_anchor=(1, 1))
     # plt.show()
     plt.savefig(name, bbox_extra_artists=(lgd,), bbox_inches='tight')
     plt.clf()
@@ -148,7 +158,7 @@ def coes():
     print '\n'.join(l_routes)
     print ''
 
-    plot(verts, name=base_plot_name.format(instance, 'coes'))
+    plot(verts, name='test_result_cordeau_{0}_notw_pubsub_coes'.format(instance))
 
 
 def pubsub_coes():
@@ -198,7 +208,7 @@ def pubsub_coes():
         print '\n'.join(l_routes)
         print ''
 
-        plot(verts, name=base_plot_name.format(instance, 'pubsub_coes'))
+        plot(verts, name='test_result_cordeau_{0}_notw_coes'.format(instance))
 
 
 def main():

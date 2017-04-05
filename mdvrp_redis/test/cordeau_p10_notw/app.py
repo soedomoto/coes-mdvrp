@@ -9,11 +9,11 @@ from threading import Thread
 
 
 def setup_redis_cluster_docker():
-    cont_names = ['m15_n182_redis_cluster_{}'.format(i) for i in range(1, 7)]
+    cont_names = ['cordeau_p10_notw_redis_cluster_{}'.format(i) for i in range(1, 7)]
     docker_stop = 'docker stop {}'.format(' '.join(cont_names))
     docker_remove = 'docker rm {}'.format(' '.join(cont_names))
-    docker_runs = ['docker run -d -P --name {} soedomoto/redis-cluster:latest /redis.conf'.format(n) for n in cont_names]
-
+    docker_runs = ['docker run -d -P --name {} soedomoto/redis-cluster:latest /redis.conf'.format(n) for n in
+                   cont_names]
 
     try:
         print subprocess.check_output(docker_stop.split())
@@ -42,7 +42,9 @@ def setup_redis_cluster_docker():
         except Exception, e:
             print e
 
-    docker_exec = 'docker exec {} /bin/sh -c "echo yes | /redis-trib.rb create --replicas 1 {}"'.format(cont_names[0], ' '.join(brokers))
+    docker_exec = 'docker exec {} /bin/sh -c "echo yes | /redis-trib.rb create --replicas 1 {}"'.format(cont_names[0],
+                                                                                                        ' '.join(
+                                                                                                            brokers))
     try:
         print subprocess.check_output(docker_exec, shell=True)
     except Exception, e:
@@ -59,11 +61,12 @@ class Producer(Thread):
     def run(self):
         retval = subprocess.check_call(
             ['../../bin/mdvrp-redis-producer',
-             '-b', '/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/jni-coes-mdvrp/coes_mdvrp_bin',
-             '-B', self.brokers[random.randint(0, len(self.brokers)-1)],
-             '-D', os.path.abspath(os.path.join(os.getcwd(), './m15_n182')),
-             '-C', os.path.abspath(os.path.join(os.getcwd(), './distance_duration_table')),
-             '-O', os.path.abspath(os.path.join(os.getcwd(), './producer'))
+             '-b',
+             '/media/soedomoto/DATA/ITB2015/EL5090 - Research Method/Research/Dynamic Enumerator Allocation/App/jni-coes-mdvrp/coes_mdvrp_bin',
+             '-B', self.brokers[random.randint(0, len(self.brokers) - 1)],
+             '-D', os.path.abspath(os.path.join(os.getcwd(), './p10')),
+             '-O', os.path.abspath(os.path.join(os.getcwd(), './producer')),
+             '-X', 60
              ])
         print 'Producer retval {}'.format(retval)
 
@@ -102,6 +105,7 @@ def main():
 
     c.join()
     p.join()
+
 
 if __name__ == '__main__':
     main()

@@ -2,14 +2,13 @@ import math
 import os
 import random
 from collections import OrderedDict
-
 import matplotlib.pyplot as plt
 import numpy
-
+from app import app_name
 
 instance = 'm15_n182'
 cost_matrix = 'distance_duration_table'
-base_plot_name='test_result_normal_field_{0}_delay_{1}'
+base_plot_name=app_name + '_{}'
 
 
 from mdvrp_redis.producer import CordeauFile
@@ -148,7 +147,7 @@ def coes():
     print '\n'.join(l_routes)
     print ''
 
-    plot(verts, name=base_plot_name.format(instance, 'coes'))
+    plot(verts, name=base_plot_name.format('coes'))
 
 
 def pubsub_coes():
@@ -198,7 +197,7 @@ def pubsub_coes():
         print '\n'.join(l_routes)
         print ''
 
-        plot(verts, name=base_plot_name.format(instance, 'pubsub_coes'))
+        plot(verts, name=base_plot_name.format('pubsub_coes'))
 
 
 def main():

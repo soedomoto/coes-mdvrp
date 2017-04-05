@@ -2,6 +2,8 @@ import json
 import random
 import threading
 import math
+from collections import OrderedDict
+
 from .model import Enumerator, CensusBlock, CostMatrix
 
 
@@ -145,21 +147,23 @@ class CordeauFile(object):
         return self
 
 
-def random_service_time():
-    ruta_count = 10;
-    lambda_interview_time = 1800
-    # Based on (Sudman, 1965) : inter-node within segment = 15% time, interview = 37% time
-    lambda_internode_time = (15.0 / 37) * ((ruta_count - 1) / ruta_count) * lambda_interview_time
-    std_dev = 0.25 * lambda_internode_time
+def random_service_time(ruta_count = 10, lambda_interview_time = 1800, sigma_interview_time=450,
+                        lambda_internode_time=None, sigma_internode_time=None):
+    if not lambda_internode_time:
+        # Based on (Sudman, 1965) : inter-node within segment = 15% time, interview = 37% time
+        lambda_internode_time = (15.0 / 37) * ((ruta_count - 1) / ruta_count) * lambda_interview_time
+
+    if not sigma_internode_time:
+        sigma_internode_time = 0.25 * lambda_internode_time
 
     ruta_service_times = 0.0
     for i in range(ruta_count):
-        t = random.gauss(lambda_interview_time, 0.25 * lambda_interview_time)
+        t = random.gauss(lambda_interview_time, sigma_interview_time)
         ruta_service_times += t
 
     inter_rute_times = 0.0
-    for i in range(ruta_count):
-        t = random.gauss(lambda_internode_time, 0.25 * lambda_internode_time)
+    for i in range(ruta_count-1):
+        t = random.gauss(lambda_internode_time, sigma_internode_time)
         inter_rute_times += t
 
     segment_service_time = ruta_service_times + inter_rute_times
@@ -183,3 +187,21 @@ class CountDownLatch(object):
         while self.count > 0:
             self.lock.wait()
         self.lock.release()
+
+
+class MyOrderedDict(OrderedDict):
+    def prepend(self, key, value, dict_setitem=dict.__setitem__):
+        root = self._OrderedDict__root
+        first = root[1]
+
+        if key in self:
+            link = self._OrderedDict__map[key]
+            link_prev, link_next, _ = link
+            link_prev[1] = link_next
+            link_next[0] = link_prev
+            link[0] = root
+            link[1] = first
+            root[1] = first[0] = link
+        else:
+            root[1] = first[0] = self._OrderedDict__map[key] = [root, first, key]
+            dict_setitem(self, key, value)
