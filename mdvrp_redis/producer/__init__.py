@@ -32,6 +32,7 @@ class Producer(object):
             self.out_dir = os.path.join(self.out_dir, datetime.now().replace(microsecond=0).isoformat())
         if options['X']:
             self.execution_time = options['X']
+        self.time_scale = options['S']
 
         try: os.makedirs(self.out_dir)
         except: pass
@@ -83,6 +84,9 @@ def main():
     parser.add_option("-O", "--output-dir",
                       dest="O", default="None",
                       help='Output directory')
+    parser.add_option("-S", "--time-scale",
+                      dest="S", default=float(1), type=float,
+                      help="Scale simulation time to real time")
     parser.add_option("-t", "--use-timestamp",
                       action="store_true", dest="t", default=False,
                       help='Append timestamp to output directory')

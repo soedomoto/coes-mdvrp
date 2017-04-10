@@ -8,6 +8,9 @@ import time
 from threading import Thread
 
 
+app_name = os.path.basename(os.path.dirname(__file__))
+
+
 def setup_redis_cluster_docker():
     cont_names = ['cordeau_p06_notw_redis_cluster_{}'.format(i) for i in range(1, 7)]
     docker_stop = 'docker stop {}'.format(' '.join(cont_names))

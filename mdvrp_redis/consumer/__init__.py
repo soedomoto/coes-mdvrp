@@ -3,12 +3,15 @@ import logging
 import os
 import random
 import socket
+import threading
 import time
 from datetime import datetime
 from multiprocessing import Process
 from optparse import OptionParser
 from threading import Thread, Lock
 import select
+
+import sys
 from rediscluster import RedisCluster
 
 from mdvrp_redis.producer import CordeauFile
@@ -155,9 +158,14 @@ class Enumerator(Thread):
     def __init__(self, en, broker_url, out_dir, use_timestamp=False, use_proxy=False, proxy_port=None):
         Thread.__init__(self)
 
+        self.start_time = None
+        self.location_received = False
+        self.explicit_quit = False
+        self.quit_after = None
         self.locations = None
         self.simulation_time_scale = None
         self.distances = None
+        self.consumer_delays = None
         self.sigma_delay = None
         self.mu_delay = None
         self.broker_url = broker_url
@@ -203,6 +211,17 @@ class Enumerator(Thread):
         f.flush()
         f.close()
 
+    def is_quit(self, has_location_received=False):
+        self.location_received = has_location_received
+
+        if self.quit_after:
+            now = time.time()
+            if now > self.start_time + self.quit_after * self.simulation_time_scale:
+                self.explicit_quit = True
+                return True
+
+        return False
+
     def run(self):
         if self.use_proxy:
             proxy_host = '127.0.0.1'
@@ -219,15 +238,24 @@ class Enumerator(Thread):
         self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
         self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
 
+        self.start_time = time.time()
+
+        tobe_visited = None
         while True:
+            if self.is_quit(): break
+            self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
+
             # Subscribe
             self.logger.debug('subscribe')
 
             if self.redis.llen('{}.next-routes'.format(self.props['id'])) == 0:
-                self.redis.rpush('request', json.dumps((self.props['id'], self.props['depot'])))
+                self.redis.rpush('request', json.dumps((str(self.props['id']), str(self.props['depot']))))
 
             # Wait for any message
-            channel, routes = self.redis.blpop('{}.next-routes'.format(self.props['id']))
+            message = self.redis.blpop('{}.next-routes'.format(self.props['id']), 300)
+            if not message: continue
+            channel, routes = message
+            if not routes: continue
             if not routes.upper() == 'EOF':
                 routes = json.loads(routes)
 
@@ -236,6 +264,8 @@ class Enumerator(Thread):
                 if str(self.props['depot']) != tobe_visited['id'] or self.props['id'] == str(self.props['depot']):
                     self.redis.set('{}.received'.format(tobe_visited['id']), self.props['id'])
 
+                    if self.is_quit(True): break
+
                     # Transportation process
                     try:
                         duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) * self.simulation_time_scale
@@ -243,6 +273,8 @@ class Enumerator(Thread):
                         time.sleep(duration)
                     except Exception, e:
                         pass
+
+                    if self.is_quit(True): break
 
                     self.logger.debug('arrived to {}'.format(tobe_visited['id']))
 
@@ -255,15 +287,34 @@ class Enumerator(Thread):
                     self.logger.debug('enumerating {} for {} s'.format(self.props['depot'], service_time))
                     time.sleep(service_time)
 
+                    if self.is_quit(): break
+
                     # Geographical delay
-                    if self.mu_delay:
-                        geo_delay = random.gauss(self.mu_delay, self.sigma_delay) * self.simulation_time_scale
+                    if self.consumer_delays:
+                        geo_delay = self.consumer_delays[self.props['depot']]
                         self.logger.debug('geographical delay for {} s'.format(geo_delay))
                         self.delay_writer.debug('{} {}'.format(self.props['depot'], geo_delay))
                         time.sleep(geo_delay)
 
+                        if self.is_quit(): break
+                    elif self.mu_delay:
+                        geo_delay = abs(random.gauss(self.mu_delay, self.sigma_delay) * self.simulation_time_scale)
+                        self.logger.debug('geographical delay for {} s'.format(geo_delay))
+                        self.delay_writer.debug('{} {}'.format(self.props['depot'], geo_delay))
+                        time.sleep(geo_delay)
+
+                        if self.is_quit(): break
+
             else:
+                self.logger.debug('No more locations. Finish.')
                 break
+
+        if self.explicit_quit and tobe_visited:
+            self.logger.debug('I quit')
+            if not self.location_received:
+                self.redis.lpop('{}.next-routes'.format(tobe_visited['id']))
+
+            self.redis.delete('{}.received'.format(tobe_visited['id']))
 
 
 def main():
@@ -279,6 +330,9 @@ def main():
     parser.add_option("-C", "--cost-file",
                       dest="C", default=None,
                       help="Cost matrix file")
+    parser.add_option("-Q", "--quit-list-file",
+                      dest="Q", default=None,
+                      help="Quit list file")
     parser.add_option("-S", "--time-scale",
                       dest="S", default=float(1)/100, type=float,
                       help="Scale simulation time to real time")
@@ -288,6 +342,9 @@ def main():
     parser.add_option("-p", "--use-proxy",
                       action="store_true", dest="p", default=False,
                       help='Use auto proxy server')
+    parser.add_option("-d", "--delay-file",
+                      dest="d", default=None,
+                      help='Delay file')
     parser.add_option("-m", "--mu-delay",
                       dest="m", default=0.0, type=float,
                       help='Mu delay')
@@ -311,6 +368,7 @@ def main():
 
     problem_file = options['D']
     cost_file = options['C']
+    quit_file = options['Q']
     out_dir = options['O']
     broker_urls = options['B']
     use_timestamp = options['t']
@@ -318,11 +376,24 @@ def main():
     simulation_time_scale = options['S']
     mu_delay = options['m']
     sigma_delay = options['s']
+    delay_file = options['d']
 
     cf = CordeauFile().read_file(problem_file, cost_file)
     enumerators = cf.all_enumerators
     distances = cf.distance_matrix
     locations = {l.id: l.__dict__ for l in cf.all_bses}
+
+    quits = {}
+    if quit_file:
+        for l in open(quit_file).readlines():
+            e, t = l.split()
+            quits[e] = float(t)
+
+    consumer_delays = {}
+    if quit_file:
+        for l in open(delay_file).readlines():
+            e, t = l.split()
+            consumer_delays[e] = float(t)
 
     if use_proxy:
         proxy_ports = get_open_port(n=len(enumerators))
@@ -332,16 +403,26 @@ def main():
     for e in enumerators:
         en = Enumerator(e.__dict__, broker_urls[random.randint(0, len(broker_urls)-1)], out_dir, use_timestamp,
                         use_proxy, proxy_ports[i] if use_proxy else None)
+        en.id = e.id
         en.distances = distances
         en.locations = locations
         en.simulation_time_scale = simulation_time_scale
+        en.consumer_delays = consumer_delays
         en.mu_delay = mu_delay
         en.sigma_delay = sigma_delay
-        ens.append(en)
+        if e.id in quits:
+            en.quit_after = quits[e.id]
+        ens.append((en.quit_after if en.quit_after else sys.maxint, en))
         i += 1
 
-    for en in ens: en.start()
-    for en in ens: en.join()
+    ens = sorted(ens)
+    e = threading.Event()
+    for _, en in ens: en.start()
+    for _, en in ens:
+        # en.join(en.quit_after)
+        # e.set()
+        en.join()
+
 
 
 if __name__ == '__main__':

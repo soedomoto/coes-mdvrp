@@ -32,24 +32,34 @@ class CoESListener(Listener):
         self.worker = worker
 
     def on_started(self, vehicle):
+        self.worker.unsolved_counter.setdefault(vehicle, 0)
         self.vehicle = vehicle
+        self.worker.app.logger.debug('Processing request from {}'.format(vehicle))
 
     def on_solution(self, vehicle, depot, routes):
+        self.worker.unsolved_counter[vehicle] = 0
+
         if self.worker.redis.llen('{}.next-routes'.format(vehicle)) == 0:
             if not self.worker.redis.get('{}.assigned'.format(routes[0].id)):
+                self.worker.app.logger.debug('Publish route for {}'.format(vehicle))
+
                 self.worker.redis.set('{}.assigned'.format(routes[0].id), vehicle)
-                self.worker.redis.rpush('{}.next-routes'.format(vehicle), routes)
+                self.worker.redis.rpush('{}.next-routes'.format(vehicle), str(routes))
 
                 try:
                     self.worker.queueue.pop(depot)
-                except: pass
+                except Exception, e:
+                    self.worker.app.logger.error('Error: {}. While: {}'.format(str(e), self.worker.queueue.keys()))
 
         if not self.is_solved and self.vehicle == vehicle:
             self.is_solved = True
 
     def on_finished(self, vehicle, depot):
+        self.worker.app.logger.debug('Finish processing request from {}'.format(vehicle))
         if not self.is_solved:
+            self.worker.unsolved_counter[vehicle] += 1
             self.worker.queueue.prepend(depot, (vehicle, depot, self.worker.out_dir, False))
+            self.worker.app.logger.debug('No route for {}. Request will be resubmitted'.format(vehicle))
 
     def on_eof(self, vehicle):
         self.worker.redis.rpush('{}.next-routes'.format(vehicle), 'EOF')
@@ -59,6 +69,7 @@ class CoESListener(Listener):
 class VRPWorker(Thread):
     is_eof = False
     queueue = MyOrderedDict()
+    unsolved_counter = {}
 
     def __init__(self, app):
         Thread.__init__(self)
@@ -72,7 +83,7 @@ class VRPWorker(Thread):
             if self.is_eof: break
 
             _, message = self.redis.blpop('request')
-            self.app.logger.debug('{} received'.format(message))
+            self.app.logger.debug('Request received: {}'.format(message))
 
             vehicle, depot = json.loads(message)
             vehicle, depot = str(vehicle), str(depot)
@@ -88,7 +99,7 @@ class VRPWorker(Thread):
                 try:
                     vehicle, depot, outdir, use_all_vehicle = self.queueue.pop(depots[0])
 
-                    sol = CoESVRPSolver(self.app, vehicle, depot, outdir, CoESListener(self))
+                    sol = CoESVRPSolver(self.app, vehicle, depot, outdir, CoESListener(self), use_all_vehicle)
                     sol.start()
                     sol.join()
 
@@ -129,16 +140,8 @@ class CoESVRPSolver(Thread):
         else:
             self.enumerators = {self.vehicle: all_vehicles[self.vehicle]}
 
-        # Update depot of each enumerators
-        for e in self.enumerators:
-            depot = self.redis.get('{}.depot'.format(e)) or e
-            if depot in all_locations:
-                self.enumerators[e].depot = all_locations[depot].id
-                self.enumerators[e].lat = all_locations[depot].lat
-                self.enumerators[e].lon = all_locations[depot].lon
-
         # Filter locations = remove assigned
-        assigned_locations = self.redis.keys('*.assigned') or '[]'
+        assigned_locations = self.redis.keys('*.assigned') or []
         assigned_locations = [l.replace('.assigned', '') for l in assigned_locations]
 
         self.locations = OrderedDict()
@@ -146,7 +149,32 @@ class CoESVRPSolver(Thread):
             if l not in assigned_locations:
                 self.locations[l] = all_locations[l]
 
+        # If no more unallocated locations, delay 1 hour and re-process all un-received locations
+        if len(self.locations) == 0:
+            self.app.logger.debug('All locations have been assigned. Locations assigned = {}. Location received = {}'.
+                                  format(len(self.redis.keys('*.assigned') or []), len(self.redis.keys('*.received'))))
+
+            time.sleep(36000 * self.app.time_scale)
+
+            self.app.logger.debug('After waiting. Locations assigned = {}. Location received = {}'.
+                                  format(len(self.redis.keys('*.assigned') or []), len(self.redis.keys('*.received'))))
+
+            received_locations = self.redis.keys('*.received') or []
+            received_locations = [l.replace('.received', '') for l in received_locations]
+            for l in all_locations:
+                if l not in received_locations:
+                    self.redis.delete('{}.assigned'.format(l))
+                    self.locations[l] = all_locations[l]
+
         if len(self.locations) > 0:
+            # Update depot of each enumerators
+            for e in self.enumerators:
+                depot = self.redis.get('{}.depot'.format(e)) or e
+                if depot in all_locations:
+                    self.enumerators[e].depot = all_locations[depot].id
+                    self.enumerators[e].lat = all_locations[depot].lat
+                    self.enumerators[e].lon = all_locations[depot].lon
+
             ts = '{}'.format(int(time.time() * 1000))
             problem_file = os.path.join(self.outdir, ts, 'problem')
             initial_cost_file = os.path.join(self.outdir, ts, 'initial-cost')
@@ -166,14 +194,14 @@ class CoESVRPSolver(Thread):
                 result_enumerators = self.translate_solution(solution_file)
                 for en in result_enumerators:
                     if len(en.routes) > 0:
-                        self.listener.on_solution(en.id, self.depot, en.routes)
+                        self.listener.on_solution(str(en.id), str(en.depot), en.routes)
                         lines.append('{}\t{}'.format(en.id, ','.join([r.id for r in en.routes])))
 
                 # Backup to file
                 with open(routes_file, 'wb') as f:
                     f.write('\n'.join(lines))
 
-            self.listener.on_finished(self.vehicle, self.depot)
+            self.listener.on_finished(str(self.vehicle), str(self.depot))
 
         else:
             for v in all_vehicles:
