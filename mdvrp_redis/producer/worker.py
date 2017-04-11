@@ -5,9 +5,10 @@ import time
 from collections import OrderedDict
 from threading import Thread
 
+from redis import Redis
 from rediscluster import RedisCluster
 
-from mdvrp_redis.producer.tool import MyOrderedDict
+from .tool import MyOrderedDict
 from .model import ResultEnumerator
 
 
@@ -22,6 +23,9 @@ class Listener():
         pass
 
     def on_eof(self, vehicle):
+        pass
+
+    def on_stopped(self):
         pass
 
 
@@ -62,11 +66,16 @@ class CoESListener(Listener):
             self.worker.app.logger.debug('No route for {}. Request will be resubmitted'.format(vehicle))
 
     def on_eof(self, vehicle):
+        self.worker.app.logger.debug('EOF')
         self.worker.redis.rpush('{}.next-routes'.format(vehicle), 'EOF')
-        self.worker.is_eof = self.worker.is_eof or True
+
+    def on_stopped(self):
+        self.worker.app.logger.debug('All finished')
+        self.worker.is_eof = True
+        self.worker.app.is_finished = True
 
 
-class VRPWorker(Thread):
+class VRPWorker(Thread, Listener):
     is_eof = False
     queueue = MyOrderedDict()
     unsolved_counter = {}
@@ -75,14 +84,16 @@ class VRPWorker(Thread):
         Thread.__init__(self)
 
         self.app = app
-        self.redis = RedisCluster(host=app.broker_url, port=6379)
+        # self.redis = RedisCluster(host=app.broker_url, port=6379)
+        self.redis = Redis(host=app.broker_url, port=6379)
         self.out_dir = self.app.out_dir
 
     def watch_channel(self):
-        while True:
-            if self.is_eof: break
-
-            _, message = self.redis.blpop('request')
+        while not self.is_eof:
+            response = self.redis.blpop('request', 15)
+            if not response: continue
+            _, message = response
+            if not message: continue
             self.app.logger.debug('Request received: {}'.format(message))
 
             vehicle, depot = json.loads(message)
@@ -93,7 +104,7 @@ class VRPWorker(Thread):
     def run(self):
         Thread(target=self.watch_channel).start()
 
-        while True:
+        while not self.is_eof:
             depots = self.queueue.keys()
             if len(depots) > 0:
                 try:
@@ -103,11 +114,12 @@ class VRPWorker(Thread):
                     sol.start()
                     sol.join()
 
-                    time.sleep(3)
-                except: pass
+                    time.sleep(1)
+                except Exception, e:
+                    print str(e)
 
             else:
-                time.sleep(10)
+                time.sleep(2)
 
 
 class CoESVRPSolver(Thread):
@@ -115,7 +127,7 @@ class CoESVRPSolver(Thread):
         Thread.__init__(self)
 
         self.app = app
-        self.redis = RedisCluster(host=app.broker_url, port=6379)
+        self.redis = Redis(host=app.broker_url, port=6379)
         self.vehicle = vehicle
         self.depot = depot
         self.outdir = outdir
@@ -150,11 +162,11 @@ class CoESVRPSolver(Thread):
                 self.locations[l] = all_locations[l]
 
         # If no more unallocated locations, delay 1 hour and re-process all un-received locations
-        if len(self.locations) == 0:
+        if len(self.locations) == 0 and len(all_locations) != len(self.redis.keys('*.received')):
             self.app.logger.debug('All locations have been assigned. Locations assigned = {}. Location received = {}'.
                                   format(len(self.redis.keys('*.assigned') or []), len(self.redis.keys('*.received'))))
 
-            time.sleep(36000 * self.app.time_scale)
+            time.sleep(900 * self.app.time_scale)
 
             self.app.logger.debug('After waiting. Locations assigned = {}. Location received = {}'.
                                   format(len(self.redis.keys('*.assigned') or []), len(self.redis.keys('*.received'))))
@@ -167,6 +179,9 @@ class CoESVRPSolver(Thread):
                     self.locations[l] = all_locations[l]
 
         if len(self.locations) > 0:
+            # open(self.app.lock_file, 'wb').write('')
+            self.redis.set('.lock', 1)
+
             # Update depot of each enumerators
             for e in self.enumerators:
                 depot = self.redis.get('{}.depot'.format(e)) or e
@@ -202,10 +217,13 @@ class CoESVRPSolver(Thread):
                     f.write('\n'.join(lines))
 
             self.listener.on_finished(str(self.vehicle), str(self.depot))
-
+            # os.remove(self.app.lock_file)
+            self.redis.delete('.lock')
         else:
             for v in all_vehicles:
                 self.listener.on_eof(v)
+
+            self.listener.on_stopped()
 
     def translate_solution(self, solution_file):
         lines = open(solution_file).readlines()

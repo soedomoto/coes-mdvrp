@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/py-mdvrp-producer-redis.iml" filepath="$PROJECT_DIR$/.idea/py-mdvrp-producer-redis.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../py-mdvrp-producer-redis-2/.idea/py-mdvrp-producer-redis-2.iml" filepath="$PROJECT_DIR$/../py-mdvrp-producer-redis-2/.idea/py-mdvrp-producer-redis-2.iml" />
     </modules>
   </component>
 </project>

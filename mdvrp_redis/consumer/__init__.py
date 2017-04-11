@@ -12,6 +12,9 @@ from threading import Thread, Lock
 import select
 
 import sys
+
+import math
+from redis import Redis
 from rediscluster import RedisCluster
 
 from mdvrp_redis.producer import CordeauFile
@@ -158,6 +161,7 @@ class Enumerator(Thread):
     def __init__(self, en, broker_url, out_dir, use_timestamp=False, use_proxy=False, proxy_port=None):
         Thread.__init__(self)
 
+        self.lock_file = None
         self.start_time = None
         self.location_received = False
         self.explicit_quit = False
@@ -173,6 +177,7 @@ class Enumerator(Thread):
         self.proxy_port = proxy_port
         self.props = en
         self.out_dir = os.path.abspath(out_dir)
+        self.all_visited = []
 
         if use_timestamp:
             now = datetime.now().replace(microsecond=0).isoformat()
@@ -215,12 +220,38 @@ class Enumerator(Thread):
         self.location_received = has_location_received
 
         if self.quit_after:
-            now = time.time()
-            if now > self.start_time + self.quit_after * self.simulation_time_scale:
+            if self.current_time > self.start_time + self.quit_after * self.simulation_time_scale:
                 self.explicit_quit = True
                 return True
 
         return False
+
+    def check_enumerator_time_window(self, est_transport_to_next_loc):
+        # TIme starts from 8 am, so hour=0 equal to 8 oclock
+        # Time window for service 8 - 16 => 0 - 8 => 0 - 479 mins
+        day_current_time = self.current_time % 1440
+        # Estimated next location = av
+        prev_service_times = [b for a,b in self.all_visited]
+        est_next_service_time = int(sum(prev_service_times) / len(prev_service_times))
+        est_finish_service = day_current_time + est_transport_to_next_loc + est_next_service_time
+
+        self.logger.debug('Transporting to and enumerating next location will pass enumerator time windows. '
+                          'Job will delayed until tomorrow')
+
+        if est_finish_service > 479:
+            self.delay(1440 - day_current_time)
+
+
+    def check_lock(self):
+        if len(self.redis.keys('.lock')) > 0:
+            time.sleep(1)
+            return self.check_lock()
+        return False
+
+    def delay(self, delay):
+        for t in range(delay):
+            self.check_lock()
+            self.current_time += 1
 
     def run(self):
         if self.use_proxy:
@@ -233,12 +264,15 @@ class Enumerator(Thread):
             proxy_host = self.broker_url
             proxy_port = 6379
 
-        self.redis = RedisCluster(host=proxy_host, port=proxy_port)
+        # self.redis = RedisCluster(host=proxy_host, port=proxy_port)
+        self.redis = Redis(host=proxy_host, port=proxy_port)
 
         self.redis.set('{}.depot'.format(self.props['id']), self.props['depot'])
         self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
 
-        self.start_time = time.time()
+        # self.start_time = time.time()
+        self.start_time = 0
+        self.current_time = 0
 
         tobe_visited = None
         while True:
@@ -267,10 +301,21 @@ class Enumerator(Thread):
                     if self.is_quit(True): break
 
                     # Transportation process
+                    # try:
+                    #     duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) * self.simulation_time_scale
+                    #     self.logger.debug('transport {}->{} for {} s'.format(self.props['depot'], tobe_visited['id'], duration))
+                    #     time.sleep(duration)
+                    # except Exception, e:
+                    #     pass
                     try:
-                        duration = float(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration']) * self.simulation_time_scale
-                        self.logger.debug('transport {}->{} for {} s'.format(self.props['depot'], tobe_visited['id'], duration))
-                        time.sleep(duration)
+                        duration = int(self.distances[str(self.props['depot'])][tobe_visited['id']]['duration'] *
+                                       self.simulation_time_scale)
+
+                        self.check_enumerator_time_window(duration)
+
+                        self.logger.debug('transport {}->{} for {} s (from {} - {})'.format(self.props['depot'],
+                                            tobe_visited['id'], duration, self.current_time, self.current_time + duration))
+                        self.delay(duration)
                     except Exception, e:
                         pass
 
@@ -283,9 +328,14 @@ class Enumerator(Thread):
                     self.dump('{} {}'.format(self.props['depot'], '{}'.format(int(time.time() * 1000))))
 
                     # Enumeration process
-                    service_time = self.locations[tobe_visited['id']]['service_time'] * self.simulation_time_scale
-                    self.logger.debug('enumerating {} for {} s'.format(self.props['depot'], service_time))
-                    time.sleep(service_time)
+                    # service_time = self.locations[tobe_visited['id']]['service_time'] * self.simulation_time_scale
+                    # self.logger.debug('enumerating {} for {} s'.format(self.props['depot'], service_time))
+                    # time.sleep(service_time)
+                    service_time = int(self.locations[tobe_visited['id']]['service_time'] * self.simulation_time_scale)
+                    self.logger.debug('enumerating {} for {} s (from {} - {})'.format(self.props['depot'], service_time,
+                                        self.current_time, self.current_time + service_time))
+                    self.delay(service_time)
+                    self.all_visited.append((tobe_visited['id'], service_time))
 
                     if self.is_quit(): break
 
@@ -294,14 +344,16 @@ class Enumerator(Thread):
                         geo_delay = self.consumer_delays[self.props['depot']]
                         self.logger.debug('geographical delay for {} s'.format(geo_delay))
                         self.delay_writer.debug('{} {}'.format(self.props['depot'], geo_delay))
-                        time.sleep(geo_delay)
+                        # time.sleep(geo_delay)
+                        self.delay(geo_delay)
 
                         if self.is_quit(): break
                     elif self.mu_delay:
                         geo_delay = abs(random.gauss(self.mu_delay, self.sigma_delay) * self.simulation_time_scale)
                         self.logger.debug('geographical delay for {} s'.format(geo_delay))
                         self.delay_writer.debug('{} {}'.format(self.props['depot'], geo_delay))
-                        time.sleep(geo_delay)
+                        # time.sleep(geo_delay)
+                        self.delay(geo_delay)
 
                         if self.is_quit(): break
 
@@ -323,6 +375,9 @@ def main():
     parser.set_usage(parser.get_usage().replace('\n', ''))
     parser.add_option("-O", "--output-dir",
                       dest="O", default="None",
+                      help='Output directory')
+    parser.add_option("-L", "--lock-file",
+                      dest="L", default="None",
                       help='Output directory')
     parser.add_option("-D", "--data",
                       dest="D", default=None,
@@ -367,6 +422,7 @@ def main():
         exit()
 
     problem_file = options['D']
+    lock_file = options['L']
     cost_file = options['C']
     quit_file = options['Q']
     out_dir = options['O']
@@ -404,6 +460,7 @@ def main():
         en = Enumerator(e.__dict__, broker_urls[random.randint(0, len(broker_urls)-1)], out_dir, use_timestamp,
                         use_proxy, proxy_ports[i] if use_proxy else None)
         en.id = e.id
+        en.lock_file = lock_file
         en.distances = distances
         en.locations = locations
         en.simulation_time_scale = simulation_time_scale

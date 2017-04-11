@@ -13,6 +13,7 @@ formatter = logging.Formatter('%(asctime)s %(levelname)s %(name)s %(message)s')
 
 
 class Producer(object):
+    is_finished = False
     all_enumerators = []
     all_bses = []
     distance_matrix = {}
@@ -30,6 +31,8 @@ class Producer(object):
             self.out_dir = os.path.abspath(self.out_dir)
         if options['t']:
             self.out_dir = os.path.join(self.out_dir, datetime.now().replace(microsecond=0).isoformat())
+        if options['L']:
+            self.lock_file = os.path.abspath(options['L'])
         if options['X']:
             self.execution_time = options['X']
         self.time_scale = options['S']
@@ -84,6 +87,9 @@ def main():
     parser.add_option("-O", "--output-dir",
                       dest="O", default="None",
                       help='Output directory')
+    parser.add_option("-L", "--lock-file",
+                      dest="L", default="None",
+                      help='Lock File')
     parser.add_option("-S", "--time-scale",
                       dest="S", default=float(1), type=float,
                       help="Scale simulation time to real time")

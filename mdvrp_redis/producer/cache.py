@@ -1,6 +1,8 @@
 import json
 from threading import Thread
 import time
+
+from redis import Redis
 from rediscluster import RedisCluster
 
 
@@ -9,7 +11,8 @@ class DataCache(Thread):
         Thread.__init__(self)
 
         self.app = app
-        self.redis = RedisCluster(host=app.broker_url, port=6379)
+        self.redis = Redis(host=app.broker_url, port=6379)
+        # self.redis = RedisCluster(host=app.broker_url, port=6379)
         self.latch = latch
 
     def cache_location(self, initial=False):
@@ -36,7 +39,7 @@ class DataCache(Thread):
     def run(self):
         delay = 0
         initial = True
-        while True:
+        while not self.app.is_finished:
             self.cache_location(initial)
             self.cache_enumerator(initial)
             self.cache_distance_matrix(initial)
@@ -45,5 +48,5 @@ class DataCache(Thread):
 
             time.sleep(delay)
 
-            delay = 60
+            delay = 15
             initial = False
