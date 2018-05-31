@@ -73,6 +73,11 @@ bool Graph::addVertex(int id, double duration, double demand, double x, double y
         return false;
     }
 }
+
+void Graph::setMatrix(double **_matrix) {
+    this->_ext_matrix = _matrix;
+}
+
 void Graph::buildEdges() {
     /*
         Build the edges between the vertices and set their weights.
@@ -85,7 +90,14 @@ void Graph::buildEdges() {
     int depotIndex = 0, customerIndex = 0;
     for(int i=1; i<_nVertices; ++i){
         for(int j=1; j<_nVertices; ++j){
-            this->matrix[i][j]=vertices[i]->distanceTo(vertices[j]);
+            double d = vertices[i]->distanceTo(vertices[j]);
+            if (this->_ext_matrix) {
+                if (this->_ext_matrix[i][j] >= 0) {
+                    d = this->_ext_matrix[i][j];
+                }
+            }
+
+            this->matrix[i][j] = d;
         }
         if (this->vertices[i]->type() == DEPOT) {
             this->_depots[depotIndex] = i;

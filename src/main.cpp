@@ -37,19 +37,25 @@ int main(int argc, char const *const *argv){
     parser.add_option("-s", "--seed").set_default(0)
             .help("The seed to start random numbers in the method. default: %default");
 
-    parser.usage(parser.usage() + " <problem_file> <solution_file>");
+    parser.usage(parser.usage() + " <problem_file> <solution_file> [distance_matrix_file]");
 
     const optparse::Values &options = parser.parse_args(argc, argv);
     const std::vector<std::string> args = parser.args();
 
-    if (args.size() != 2) {
+    std::string fileName, outFileName, distanceFileName;
+
+    if (args.size() >= 2) {
+        fileName = args[0];
+        outFileName = args[1];
+
+        if (args.size() >= 3) {
+            distanceFileName = args[2];
+        }
+    } else {
         parser.print_help();
         std::cout.flush();
         return EXIT_FAILURE;
     }
-
-    std::string fileName = args[0];
-    std::string outFileName = args[1];
 
     int nIterations = options.get("num_iteration");
     int populationSize = options.get("population_size");
@@ -60,33 +66,25 @@ int main(int argc, char const *const *argv){
     bool maxMigrations = (atoi(options.get("max_migration")) == 0) ? true : false;
     int seed = options.get("seed");
 
-    std::fstream input, output;
+    std::fstream input, output, distance;
     int nVehicles, nCustomers, nDepots;
     double maxRouteDuration, capacity;
-
-//        std::cout << "[ERROR]: Invalid parameters: the correct parameters are, in this order:" << std::endl;
-//        std::cout << "<infile>        : File with instance parameters" << std::endl;
-//        std::cout << "<it>            : How many iterations the method should run" << std::endl;
-//        std::cout << "<pop size>      : How many individuals there arein each population" << std::endl;
-//        std::cout << "<mut ratio>     : Mutation Ratio [0.000 - 1.000]" << std::endl;
-//        std::cout << "<n_populations> : Number of populations for the same route" << std::endl;
-//        std::cout << "<it-mig>        : How many iterations between migrations" << std::endl;
-//        std::cout << "<it-in-mig>     : How many iterations to a individual migrate" << std::endl;
-//        std::cout << "<migration mode>: 0 to perform maximum number of migrations per cicle, otherwise 1 migration per clicle" << std::endl;
-//        std::cout << "<outfile>       : File with instance parameters" << std::endl;
-//        std::cout << "[<seed>]        : The seed to start random numbers in the method" << std::endl;
+    double **matrix;
 
     input.open(fileName, std::ifstream::in);
     if(!input.good()) {
         std::cout << "[ERROR]: Could not open file: did you put th path correctly?" << std::endl;
-        return 0;
+        return 1;
     }
+
     input >> nVehicles;
     input >> nCustomers;
     input >> nDepots;
     input >> maxRouteDuration;
     input >> capacity;
+
     Graph g(nCustomers, nDepots, nVehicles);
+
     for(int i=0; i<nCustomers; ++i){
         int id, duration, demand;
         double x, y;
@@ -102,7 +100,31 @@ int main(int argc, char const *const *argv){
         input >> id >> x >> y >> duration >> demand;
         g.addVertex(id, duration, demand, x, y, DEPOT);
     }
+
+    distance.open(distanceFileName, std::ifstream::in);
+    if(!distance.good()) {
+        std::cout << "[WARNING]: No distance matrix is provided. Solver will use euclidean instead!" << std::endl;
+    } else {
+        matrix = new double*[nCustomers + nDepots + 1];
+        for(int i=0; i<nCustomers + nDepots + 1; ++i){
+            matrix[i]=new double[nCustomers + nDepots + 1];
+            for(int j=0; j<nCustomers + nDepots + 1; ++j){
+                matrix[i][j] = -1;
+            }
+        }
+
+        for(int i=0; i<nCustomers + nDepots + 1; ++i){
+            int a, b;
+            double d;
+            distance >> a >> b >> d;
+            matrix[a][b] = d;
+        }
+
+        g.setMatrix(matrix);
+    }
+
     g.buildEdges();
+
     MutSwap mutOp(mutationRatio);
     CrCut crOp(nCustomers + nDepots);
     SelTour selOp(3);
@@ -112,6 +134,10 @@ int main(int argc, char const *const *argv){
     const char *outStr = solver.solve(nIterations, itToMigrate, redundancy, itToInnerMig, maxMigrations, seed);
 
     output.open(outFileName, std::fstream::out);
+    if(!output.good()) {
+        std::cout << "[ERROR]: Could not open file: did you put th path correctly?" << std::endl;
+        return 1;
+    }
     output << outStr;
     output.close();
 

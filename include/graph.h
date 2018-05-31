@@ -12,6 +12,7 @@
 class Graph {
     private:
         double **matrix;
+        double **_ext_matrix;
         Vertex **vertices;
         int nCustomers;
         int _nDepots;
@@ -28,6 +29,7 @@ class Graph {
         void printDistances();
 
         bool addVertex(int id, double duration, double demand, double x, double y, int type);
+        void setMatrix(double **_matrix);
         void buildEdges();
         double distanceTo(int a, int b);
         bool setToRoute(int vertex, int population);
